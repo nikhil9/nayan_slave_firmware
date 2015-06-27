@@ -33,7 +33,7 @@ sudo restart udev
 *select 'build' directory location at 'Working Directory'
 *Put following lines in Argument tab
 
--d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D nayan_slave_processor.bin
+-d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D nayan_slave_firmware.bin
 
 *Disable AutoBuild from Build tab.
 
