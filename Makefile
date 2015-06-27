@@ -65,7 +65,7 @@ endif
 #
 
 # Define project name here
-PROJECT = nayan_hlp
+PROJECT = nayan_slave_firmware
 
 # Imported source files and paths
 CHIBIOS = OS_PORT
