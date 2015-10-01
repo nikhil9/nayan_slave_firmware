@@ -65,21 +65,33 @@ bool_t check_acc_sanity(float _a){
  */
 void update_ic_data(void){
 
-	accel.x = ic_imu_data.ic_imu.ax;
-	accel.y = ic_imu_data.ic_imu.ay;
-	accel.z = ic_imu_data.ic_imu.az;
+	uint32_t stamp = millis();
+	sens_imu.stamp = stamp;
+	sens_imu.accel_calib.x = ic_imu_data.ic_imu.ax;
+	sens_imu.accel_calib.y = ic_imu_data.ic_imu.ay;
+	sens_imu.accel_calib.z = ic_imu_data.ic_imu.az;
 
-	gyro.x = ic_imu_data.ic_imu.gx;
-	gyro.y = ic_imu_data.ic_imu.gy;
-	gyro.z = ic_imu_data.ic_imu.gz;
+	sens_imu.gyro_calib.x = ic_imu_data.ic_imu.gx;
+	sens_imu.gyro_calib.y = ic_imu_data.ic_imu.gy;
+	sens_imu.gyro_calib.z = ic_imu_data.ic_imu.gz;
 
-	attitude.x = ic_imu_data.ic_imu.roll;
-	attitude.y = ic_imu_data.ic_imu.pitch;
-	attitude.z = ic_imu_data.ic_imu.yaw;
+	ahrs.stamp = stamp;
+	ahrs.attitude.x = ic_imu_data.ic_imu.roll;
+	ahrs.attitude.y = ic_imu_data.ic_imu.pitch;
+	ahrs.attitude.z = ic_imu_data.ic_imu.yaw;
 
-	position.x = ic_imu_data.ic_imu.lat;
-	position.y = ic_imu_data.ic_imu.lng;
-	position.z = ic_imu_data.ic_imu.alt;
+	Vector3f _position_gps;
+	_position_gps.x = ic_imu_data.ic_imu.lat;
+	_position_gps.y = ic_imu_data.ic_imu.lng;
+	_position_gps.z = ic_imu_data.ic_imu.alt;
+
+	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
+	{
+		sens_gps.stamp = stamp;
+		sens_gps.lat = _position_gps.x;
+		sens_gps.lng = _position_gps.y;
+		sens_gps.alt = _position_gps.z;
+	}
 
 	velocity.x = ic_imu_data.ic_imu.vx;
 	velocity.y = ic_imu_data.ic_imu.vy;

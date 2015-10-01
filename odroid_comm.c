@@ -27,6 +27,11 @@ mavlink_system_t mavlink_system;
 static mavlink_rc_channels_override_t rc_channels_override;
 
 /**
+ * variables defined by atulya
+ */
+static mavlink_vision_position_estimate_t vision_position_inp;
+
+/**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
 static void send_heart_beat(void){
@@ -46,15 +51,15 @@ static void send_scaled_imu(void){
 
 	mavlink_msg_scaled_imu_send(MAVLINK_COMM_0,
 			  millis(),
-			  (int16_t)(accel.x*1000),
-			  (int16_t)(accel.y*1000),
-			  (int16_t)(accel.z*1000),
-			  (int16_t)(gyro.x*1000),
-			  (int16_t)(gyro.y*1000),
-			  (int16_t)(gyro.z*1000),
-			  0,
-			  0,
-			  0);
+			  (int16_t)(sens_imu.accel_calib.x*1000),
+			  (int16_t)(sens_imu.accel_calib.y*1000),
+			  (int16_t)(sens_imu.accel_calib.z*1000),
+			  (int16_t)(sens_imu.gyro_calib.x*1000),
+			  (int16_t)(sens_imu.gyro_calib.y*1000),
+			  (int16_t)(sens_imu.gyro_calib.z*1000),
+			  (int16_t)(rc_channels_override.chan1_raw),
+			  (int16_t)(rc_channels_override.chan2_raw),
+			  (int16_t)1000);
 }
 
 /**
@@ -65,12 +70,12 @@ static void send_attitude(void){
 	mavlink_msg_attitude_send(
 			MAVLINK_COMM_0,
 			millis(),
-			attitude.x,
-			attitude.y,
-			attitude.z,
-			gyro.x,
-			gyro.y,
-			gyro.z);
+			ahrs.attitude.x,
+			ahrs.attitude.y,
+			ahrs.attitude.z,
+			sens_imu.gyro_calib.x,
+			sens_imu.gyro_calib.y,
+			sens_imu.gyro_calib.z);
 }
 
 /**
@@ -81,14 +86,14 @@ static void send_gps(void){
 	mavlink_msg_global_position_int_send(
 			MAVLINK_COMM_0,
 			millis(),
-			position.x,
-			position.y,
-			position.z,
-			position.z,
+			sens_gps.lat,
+			sens_gps.lng,
+			sens_gps.alt,
+			sens_gps.alt,
 			velocity.x,
 			velocity.y,
 			velocity.z,
-			(int16_t)(attitude.z*5729.57));
+			(int16_t)(ahrs.attitude.z*5729.57));
 }
 
 /**
@@ -109,6 +114,21 @@ static void send_rc_in(void){
 		0,
         -1);
 }
+/**
+ * changes made by atulya
+ */
+static void send_local_position_ned(void)
+{
+	mavlink_msg_local_position_ned_send(
+			MAVLINK_COMM_0,
+			millis(),
+			vis_pos.x,
+			vis_pos.y,
+			vis_pos.z,
+			vis_vel.x,
+			vis_vel.y,
+			vis_vel.z);
+}
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
@@ -126,6 +146,8 @@ static msg_t mavlinkSend(void *arg) {
 
   uint16_t rc_cnt = 0;
 
+  uint16_t vis_cnt = 0;
+
   while (TRUE) {
 
 	  if(hbt_cnt > 200){
@@ -133,10 +155,15 @@ static msg_t mavlinkSend(void *arg) {
 		  hbt_cnt = 0;
 	  }
 
-
 	  send_scaled_imu();
 
 	  send_attitude();
+
+	  if(vis_cnt > 3)
+	  {
+		  send_local_position_ned();
+		  vis_cnt = 0;
+	  }
 
 	  if(gps_cnt > 40){
 		  send_gps();
@@ -152,6 +179,7 @@ static msg_t mavlinkSend(void *arg) {
 	  hbt_cnt++;
 	  gps_cnt++;
 	  rc_cnt++;
+	  vis_cnt++;
 
   }
   return 0;
@@ -259,6 +287,21 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
     {
     	mavlink_msg_mission_count_send(MAVLINK_COMM_0, 1, 0, 0);
+    	break;
+    }
+
+    /**
+     * additions by atulya
+     */
+
+    case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
+    {
+    	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
+    	vis_pos_inp.x = vision_position_inp.x;
+    	vis_pos_inp.y = vision_position_inp.y;
+    	vis_pos_inp.z = vision_position_inp.z;
+    	vis_inp_time = vision_position_inp.usec;
+
     	break;
     }
 

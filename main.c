@@ -7,40 +7,7 @@
 #include "Setup.h"
 #include "intercomm.h"
 #include "odroid_comm.h"
-
-
-/**
- * This variable contains acceleration values in g
- * accel.x -> acceleration along x axis
- * accel.y -> acceleration along y axis
- * accel.z -> acceleration along z axis
- */
-vector_3f accel;
-
-/**
- * This variable contains angular rate values in radians per second
- * gyro.x -> angular rate about x axis
- * gyro.y -> angular rate about y axis
- * gyro.z -> angular rate about z axis
- */
-vector_3f gyro;
-
-
-/**
- * This variable contains attitude values in radians
- * attitude.x -> Roll
- * attitude.y -> Pitch
- * attitude.z -> Heading
- */
-vector_3f attitude;
-
-/**
- * This variable contains location estimates
- * position.x -> Lattitude * 1E07
- * position.y -> Longitude * 1E07
- * position.z -> Altitude (Relative)
- */
-vector_3f position;
+#include "inertial_nav.h"
 
 /**
  * This variable contains velocity in centimeter per second
@@ -61,6 +28,24 @@ uint16_t rc_in[7];
  * main() function with system initialization
  * @return 0
  */
+
+vector_3f vis_pos_inp;
+uint64_t prev_vis_inp_time;
+uint64_t vis_inp_time;
+
+vector_3f vis_pos;
+
+vector_3f vis_vel;
+
+Sensor_IMU sens_imu;
+uint32_t last_imu_stamp;
+Sensor_GPS sens_gps;
+uint32_t last_gps_stamp;
+
+AHRS ahrs;
+Inertial_nav_data inav;
+
+
 int main(void){
 
 
@@ -77,8 +62,27 @@ int main(void){
 /**
  * USER CODE GOES HERE
  */
-			delay(20);
+		if(sens_imu.stamp > last_imu_stamp)
+		{
+			updateAHRS();
+			updateINAV(sens_imu.stamp - last_imu_stamp);
+		}
+		if(vis_inp_time != prev_vis_inp_time)
+		{
+			vis_vel.x = vis_inp_time - prev_vis_inp_time;
+			vis_vel.y = vis_pos_inp.y - vis_pos.y;
+			vis_vel.z = vis_pos_inp.z - vis_pos.z;
+			vis_pos = vis_pos_inp;
+			vis_pos.y = millis();
+			vis_pos.z = vis_vel.x;
+			prev_vis_inp_time = vis_inp_time;
+		}
 
+		vis_pos.x = sens_imu.accel_calib.x;
+		vis_pos.y = 100;
+		vis_pos.z = sens_imu.accel_calib.z;
+
+		delay(10);
 	}
 	return 0;
 }
