@@ -9,6 +9,9 @@
 #include "odroid_comm.h"
 #include "inertial_nav.h"
 
+
+//variables for state debugging via the message sim_state
+float q[4];
 /**
  * This variable contains velocity in centimeter per second
  * velocity.x -> velocity along x axis
@@ -78,9 +81,15 @@ int main(void){
 			prev_vis_inp_time = vis_inp_time;
 		}
 
-		vis_pos.x = sens_imu.accel_calib.x;
-		vis_pos.y = 100;
+		debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
+
+		vis_pos.x = (-123);
+		vis_pos.y = (float)100;
 		vis_pos.z = sens_imu.accel_calib.z;
+		q[0] = 0.2;
+		q[1] = 0.3;
+		q[2] = 0.4;
+		q[3] = 1;
 
 		delay(10);
 	}

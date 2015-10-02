@@ -28,4 +28,6 @@ void start_blink(void);
 
 void start_sys(void);
 
+void debug(const char *fmt, ...);
+
 #endif /* SETUP_H_ */

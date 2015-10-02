@@ -21,6 +21,11 @@
 #include "OS_PORT/ext/mavlink/v1.0/common/mavlink.h"
 #include "intercomm.h"
 #include "main.h"
+#include "inertial_nav.h"
+
+const float MILLIG_TO_MS2 = 9.80665f / 1000.0f;
+const float MS2_TO_MILLIG = 1000.0f/9.80665f;
+const float RAD_TO_MILLIRAD = 1000.0f;
 
 mavlink_system_t mavlink_system;
 
@@ -51,12 +56,12 @@ static void send_scaled_imu(void){
 
 	mavlink_msg_scaled_imu_send(MAVLINK_COMM_0,
 			  millis(),
-			  (int16_t)(sens_imu.accel_calib.x*1000),
-			  (int16_t)(sens_imu.accel_calib.y*1000),
-			  (int16_t)(sens_imu.accel_calib.z*1000),
-			  (int16_t)(sens_imu.gyro_calib.x*1000),
-			  (int16_t)(sens_imu.gyro_calib.y*1000),
-			  (int16_t)(sens_imu.gyro_calib.z*1000),
+			  (int16_t)(sens_imu.accel_calib.x*MS2_TO_MILLIG),
+			  (int16_t)(sens_imu.accel_calib.y*MS2_TO_MILLIG),
+			  (int16_t)(sens_imu.accel_calib.z*MS2_TO_MILLIG),
+			  (int16_t)(sens_imu.gyro_calib.x*RAD_TO_MILLIRAD),
+			  (int16_t)(sens_imu.gyro_calib.y*RAD_TO_MILLIRAD),
+			  (int16_t)(sens_imu.gyro_calib.z*RAD_TO_MILLIRAD),
 			  (int16_t)(rc_channels_override.chan1_raw),
 			  (int16_t)(rc_channels_override.chan2_raw),
 			  (int16_t)1000);
@@ -117,17 +122,32 @@ static void send_rc_in(void){
 /**
  * changes made by atulya
  */
-static void send_local_position_ned(void)
+static void send_sim_state(void)
 {
-	mavlink_msg_local_position_ned_send(
+	mavlink_msg_sim_state_send(
 			MAVLINK_COMM_0,
-			millis(),
-			vis_pos.x,
-			vis_pos.y,
-			vis_pos.z,
-			vis_vel.x,
-			vis_vel.y,
-			vis_vel.z);
+			q[0],
+			q[1],
+			q[2],
+			q[3],
+			ahrs.attitude.x,
+			ahrs.attitude.y,
+			ahrs.attitude.z,
+			ahrs.accel_ef.x,
+			ahrs.accel_ef.y,
+			ahrs.accel_ef.z,
+			sens_imu.gyro_calib.x,
+			sens_imu.gyro_calib.y,
+			sens_imu.gyro_calib.z,
+			inav.position.x,
+			inav.position.y,
+			inav.position.z,
+			0,
+			0,
+			sens_imu.accel_calib.x,
+			sens_imu.accel_calib.y,
+			sens_imu.accel_calib.z
+			);
 }
 
 /**
@@ -159,9 +179,9 @@ static msg_t mavlinkSend(void *arg) {
 
 	  send_attitude();
 
-	  if(vis_cnt > 3)
+	  if(vis_cnt > 4)
 	  {
-		  send_local_position_ned();
+		  send_sim_state();
 		  vis_cnt = 0;
 	  }
 

@@ -87,6 +87,11 @@ extern AHRS ahrs;
 extern vector_3f velocity;
 extern uint16_t rc_in[7];
 
+//variables for control_system_state
+extern float vel_variance[3];
+extern float pos_variance[3];
+extern float q[4];
+
 /* Extra variables added by atulya for communication with odroid*/
 /*--------------------------------------------------------------*/
 extern vector_3f vis_pos_inp;

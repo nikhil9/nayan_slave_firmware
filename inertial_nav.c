@@ -22,16 +22,16 @@ void updateAHRS(void)
 	ahrs.cos_psi = cosf(ahrs.attitude.z);
 	ahrs.sin_psi = sinf(ahrs.attitude.z);
 
-	//TODO check out this formula from ArduCopter
+	//DONEtodo- check out this formula from ArduCopter : present in AP_AHRS_DCM and AP_MATH/matrix3
 	ahrs.accel_ef.x = ahrs.cos_theta*ahrs.cos_psi*sens_imu.accel_calib.x +
 					(-ahrs.cos_phi*ahrs.sin_psi + ahrs.sin_phi*ahrs.sin_theta*ahrs.cos_psi)*sens_imu.accel_calib.y +
-					(-ahrs.sin_phi*ahrs.sin_psi + ahrs.cos_phi*ahrs.sin_theta*ahrs.cos_psi)*sens_imu.accel_calib.z;
+					(ahrs.sin_phi*ahrs.sin_psi + ahrs.cos_phi*ahrs.sin_theta*ahrs.cos_psi)*sens_imu.accel_calib.z;
 
 	ahrs.accel_ef.y = ahrs.cos_theta*ahrs.sin_psi*sens_imu.accel_calib.x +
 					(ahrs.cos_phi*ahrs.cos_psi + ahrs.sin_phi*ahrs.sin_theta*ahrs.sin_psi)*sens_imu.accel_calib.y +
 					(-ahrs.sin_phi*ahrs.cos_psi + ahrs.cos_phi*ahrs.sin_theta*ahrs.sin_psi)*sens_imu.accel_calib.z;
 
-	ahrs.accel_ef.y = -ahrs.sin_theta*sens_imu.accel_calib.x +
+	ahrs.accel_ef.z = -ahrs.sin_theta*sens_imu.accel_calib.x +
 					ahrs.sin_phi*ahrs.cos_theta*sens_imu.accel_calib.y +
 					ahrs.cos_phi*ahrs.cos_theta*sens_imu.accel_calib.z;
 
@@ -60,26 +60,6 @@ void setPositionXY(float x, float y)
 	//add only last position to the historic estimate
 }
 
-/**
- * @brief corrects the IMU data so that all accelero and gyro are in the same frame
- * TODO check this out if it responds well
- */
-static void correctIMUTemp(void)
-{
-	float tmp;
-	tmp = sens_imu.accel_calib.y;
-	sens_imu.accel_calib.y = -0.1*sens_imu.accel_calib.x;
-	sens_imu.accel_calib.x = 0.1*tmp;
-	sens_imu.accel_calib.z = -0.1*sens_imu.accel_calib.z;
-
-	tmp = sens_imu.gyro_calib.y;
-	sens_imu.gyro_calib.y = -0.1*sens_imu.gyro_calib.x;
-	sens_imu.gyro_calib.x = 0.1*tmp;
-	sens_imu.gyro_calib.z = -0.1*sens_imu.gyro_calib.z;
-
-	ahrs.attitude.y = -ahrs.attitude.y;
-	ahrs.attitude.z = -ahrs.attitude.z;
-}
 /**
  * @brief correct the inav with new gps updates
  */
@@ -189,9 +169,10 @@ void updateINAV(uint32_t del_t)
 
 	Vector3f accel_ef;
 
-	correctIMUTemp();		//TODO correct the readings of the IMU so they are all in the correct frame: remove this feature when slave code is rectified
-	accel_ef = ahrs.accel_ef;	//TODO work this out properly ahrs acceleration is in dm/s/s so converting it to cm/s/s
-	accel_ef.z += (-GRAVITY_CMSS);
+	accel_ef.x = ahrs.accel_ef.x*100;	//acceleration in ahrs obtained is in mss and we are storing in cmss
+	accel_ef.y = ahrs.accel_ef.y*100;	//acceleration in ahrs obtained is in mss and we are storing in cmss
+
+	accel_ef.z = -(ahrs.accel_ef.z*100 + GRAVITY_CMSS); //converting acceleration from NED to NEU for proper calculation of altitude
 
 	//position is assumed with respect to an NEU frame
 	// convert ef position error to horizontal body frame

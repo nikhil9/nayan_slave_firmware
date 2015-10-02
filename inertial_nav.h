@@ -75,7 +75,7 @@ void updateAHRS(void);
 
 /**
  * @brief set the Home position for the system
- * TODO not sure if required here(may only be required in the checkGPS position but still check it out
+ * TODO
  */
 void setHomePosition(uint32_t lat_home, uint32_t lng_home, uint32_t alt_home);
 
@@ -86,7 +86,6 @@ void updateGains(void);
 
 /**
  * @brief sets the desired postion in the inertial navigation system units in cm
- * TODO
  */
 void setPositionXY(float x, float y);
 
