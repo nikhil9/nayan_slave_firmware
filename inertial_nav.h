@@ -25,9 +25,15 @@
 #define INERTIAL_NAV_DELTAT_MAX 		0.1
 #define AP_INTERTIALNAV_TC_XY   		2.5f // default time constant for complementary filter's X & Y axis
 #define AP_INTERTIALNAV_TC_Z    		5.0f // default time constant for complementary filter's Z axis
-#define AP_INTERTIALNAV_GPS_TIMEOUT_MS  300  // timeout after which position error from GPS will fall to zero
 
+// #defines to control how often historical accel based positions are saved
+// so they can later be compared to laggy gps readings
+#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   10
+#define AP_HISTORIC_XY_SIZE							5
+#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
+#define AP_INTERTIALNAV_GPS_TIMEOUT_MS              300     // timeout after which position error from GPS will fall to zero
 
+#define AP_HISTORIC_Z_SIZE							15		// assuming a 150 ms delay for the ultrasonic data if the AHRS is called at 100Hz
 
 /**
  * @brief implements basic variables required for inertial navigation
@@ -46,12 +52,22 @@ typedef struct
 
 	uint32_t gps_last_update; 		/**< timestamp of the last update to the external postion tracking system #gps_last_update.*/
 	uint32_t gps_last; 				/**< timestamp of the last update to the gps data #gps_last.*/
+	uint8_t flag_gps_glitching;		/**< set to 1 if we have just recovered from a glitch in the GPS*/
 
 	float time_constant_xy;			/**< PARAM time constant for the gain parameters #time_constant_xy.*/
 	float time_constant_z;			/**< PARAM time constant for the gain parameters #time_constant_z.*/
-//	uint32_t extpos1_last_update;
-//	uint32_t extpos1_last;
 
+	// variables to store historic estimates calculated from the IMU
+	uint8_t historic_xy_counter;
+	float historic_x[AP_HISTORIC_XY_SIZE];
+	float historic_y[AP_HISTORIC_XY_SIZE];
+	Queue_property historic_x_property;
+	Queue_property historic_y_property;
+
+	// variables to store historic estimates calculated from the IMU
+	uint8_t historic_z_counter;
+	float historic_z[AP_HISTORIC_Z_SIZE];
+	Queue_property historic_z_property;
 
 }Inertial_nav_data;
 
@@ -74,10 +90,14 @@ void init(void);
 void updateAHRS(void);
 
 /**
- * @brief set the Home position for the system
- * TODO
+ * @brief automatically initialize the home position depending on the current position
  */
-void setHomePosition(uint32_t lat_home, uint32_t lng_home, uint32_t alt_home);
+void initializeHome(void);
+
+/**
+ * @brief sets the position variables to home
+ */
+void setupHomePosition(void);
 
 /**
  * @brief update the gains of the complementary filter used to update the inertial navigation data

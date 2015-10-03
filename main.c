@@ -10,7 +10,7 @@
 #include "inertial_nav.h"
 
 
-//variables for state debugging via the message sim_state
+//variables for state debugging via the mavlink message sim_state
 float q[4];
 /**
  * This variable contains velocity in centimeter per second
@@ -47,7 +47,6 @@ uint32_t last_gps_stamp;
 
 AHRS ahrs;
 Inertial_nav_data inav;
-
 
 int main(void){
 

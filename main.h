@@ -12,32 +12,7 @@
 #include "hal.h"
 #include "Setup.h"
 #include "intercomm.h"
-
-typedef struct{
-	float x;
-	float y;
-	float z;
-
-}vector_3f;
-
-/**
- * @brief implements a 2 dimensional vector of type float
- */
-typedef struct
-{
-	float x;
-	float y;
-}Vector2f;
-
-/**
- * @brief implements a 3 dimensional vector of type float
- */
-typedef struct
-{
-	float x;
-	float y;
-	float z;
-}Vector3f;
+#include "autopilot_math.h"
 
 /**
  * @brief stores the raw imu variables acceleration and the angular velocity
@@ -55,8 +30,8 @@ typedef struct
 typedef struct
 {
 	uint32_t stamp;
-	float lat;
-	float lng;
+	uint32_t lat;
+	uint32_t lng;
 	float alt;
 }Sensor_GPS;
 
@@ -68,8 +43,9 @@ typedef struct
 	uint32_t stamp;
 	Vector3f attitude;
 
-	float lat_home;
-	float lng_home;
+	uint32_t lat_home;
+	uint32_t lng_home;
+	float alt_home;
 
 	float sin_phi, cos_phi;
 	float sin_theta, cos_theta;

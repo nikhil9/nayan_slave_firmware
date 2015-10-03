@@ -106,8 +106,8 @@ void update_ic_data(void){
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{
 		sens_gps.stamp = stamp;
-		sens_gps.lat = _position_gps.x;
-		sens_gps.lng = _position_gps.y;
+		sens_gps.lat = (uint32_t)(1.0e7f*_position_gps.x);
+		sens_gps.lng = (uint32_t)(1.0e7f*_position_gps.y);
 		sens_gps.alt = _position_gps.z;
 	}
 
