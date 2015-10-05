@@ -34,6 +34,7 @@
 #define AP_INTERTIALNAV_GPS_TIMEOUT_MS              300     // timeout after which position error from GPS will fall to zero
 
 #define AP_HISTORIC_Z_SIZE							15		// assuming a 150 ms delay for the ultrasonic data if the AHRS is called at 100Hz
+#define GPS_RADIUS_CM								400
 
 /**
  * @brief implements basic variables required for inertial navigation
@@ -53,6 +54,16 @@ typedef struct
 	uint32_t gps_last_update; 		/**< timestamp of the last update to the external postion tracking system #gps_last_update.*/
 	uint32_t gps_last; 				/**< timestamp of the last update to the gps data #gps_last.*/
 	uint8_t flag_gps_glitching;		/**< set to 1 if we have just recovered from a glitch in the GPS*/
+	float lon_to_cm_scaling;         // conversion of longitude to centimeters
+	int32_t last_good_lat;
+	int32_t last_good_lng;
+	uint32_t last_good_gps_update;
+
+	uint32_t ext_pos_last_update;
+	uint32_t ext_pos_last;
+	uint8_t flag_ext_pos_glitching;
+	Vector3f last_good_ext_pos;
+	uint32_t last_good_ext_pos_update;
 
 	float time_constant_xy;			/**< PARAM time constant for the gain parameters #time_constant_xy.*/
 	float time_constant_z;			/**< PARAM time constant for the gain parameters #time_constant_z.*/
@@ -82,7 +93,7 @@ void updateINAV(uint32_t del_t);
 /**
  * @brief initialize the variables for inertial navigation
  */
-void init(void);
+void initINAV(void);
 
 /**
  * @brief update the variables of the AHRS on the basis of new imu readings

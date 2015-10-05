@@ -10,6 +10,17 @@
 #include "main.h"
 #include "inertial_nav.h"
 
+static void printQueue(float arr[], Queue_property q_property)
+{
+	debug("Size = %d ; Front = %d; Last = %d; is_full = %d; is_empty = %d\n",
+		q_property.size, q_property.first, q_property.last, q_property.is_full, q_property.is_empty);
+
+	int i;
+	for(i=0; i<q_property.size; i++)
+		debug("%1.2f ", arr[i]);
+	debug("\n");
+}
+
 void updateAHRS(void)
 {
 	ahrs.cos_phi = cosf(ahrs.attitude.x);
@@ -40,7 +51,37 @@ void updateAHRS(void)
  */
 static int isGPSGlitching(void)
 {
-	return 0;
+// calculate time since last sane gps reading in ms
+	float sane_dt = (sens_gps.stamp - inav.last_good_gps_update) / 1000.0f;
+
+	float dlat = sens_gps.lat - inav.last_good_lat;
+	float dlong = sens_gps.lng - inav.last_good_lng;
+
+	float distance_cm = sqrt(dlat*dlat + dlong*dlong)*LATLON_TO_CM;
+	debug("distance to last_good_lat is %f", distance_cm);
+
+	int all_ok = 0;
+
+	    // all ok if within a given hardcoded radius
+	if (distance_cm <= GPS_RADIUS_CM)
+	{
+		all_ok = 1;
+	}
+	//TODO complete the accel_based distance
+//	else
+//	{
+//		// or if within the maximum distance we could have moved based on our acceleration
+//		accel_based_distance = 0.5f * _accel_max_cmss * sane_dt * sane_dt;
+//		all_ok = (distance_cm <= accel_based_distance);
+//	}
+
+	if(all_ok == 1)
+	{
+		inav.last_good_lat = sens_gps.lat;
+		inav.last_good_lng = sens_gps.lng;
+		inav.last_good_gps_update = sens_gps.stamp;
+	}
+	return (!all_ok);
 }
 
 void setPositionXY(float x, float y)
@@ -60,6 +101,18 @@ void setPositionXY(float x, float y)
 	pushToQueue(inav.position_base.y, inav.historic_y, &inav.historic_y_property);
 }
 
+// set_altitude - set base altitude estimate in cm
+void setAltitude( float new_altitude)
+{
+    inav.position_base.z = new_altitude;
+    inav.position_correction.z = 0;
+    inav.position.z = new_altitude; // _position = _position_base + _position_correction
+    resetQueue(inav.historic_z, &inav.historic_z_property);
+
+    inav.historic_z_counter = 0;
+    pushToQueue(inav.position_base.z, inav.historic_z, &inav.historic_z_property);
+}
+
 /**
  * @brief correct the inav with new gps updates
  */
@@ -69,11 +122,15 @@ static void correctWithGPS(float dt)
 	if(dt > 1.0f || dt <= 0.0f)
 		return;
 
-	float x = (sens_gps.lat - ahrs.lat_home) * LATLON_TO_CM;
-	float y = (sens_gps.lng - ahrs.lng_home) * cosf(sens_gps.lat * 1.0e-7f * DEG_TO_RAD) * LATLON_TO_CM;
+	x_cm = (sens_gps.lat - ahrs.lat_home) * LATLON_TO_CM;
+	y_cm = (sens_gps.lng - ahrs.lng_home) * inav.lon_to_cm_scaling;
+
+//	debug("GPS lat is %d; GPS lng is %d;", sens_gps.lat, sens_gps.lng);
+//	debug("GPS x is %f; GPS y is %f; deltat is %f",x,y,dt);
 
 	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
-	if(isGPSGlitching())
+	int glitching_status = isGPSGlitching();
+	if(glitching_status)
 	{
 		// failed sanity check so degrate position_error to 10% over 2 seconds (assumes 5hz update rate)
 		inav.position_error.x *= 0.7943f;
@@ -85,7 +142,9 @@ static void correctWithGPS(float dt)
 		// reset the inertial nav position and velocity to gps values
 		if(inav.flag_gps_glitching == 1)
 		{
-			setPositionXY(x,y);
+			debug("position base %f; position correction is %f; position_error is %f",
+							inav.position_base.x, inav.position_correction.x, inav.position_error.x);
+			setPositionXY(x_cm,y_cm);
 			inav.position_error.x = 0.0f;
 			inav.position_error.y = 0.0f;
 		}
@@ -104,11 +163,14 @@ static void correctWithGPS(float dt)
 				historic_position_base.y = inav.position_base.y;
 			}
 
-			inav.position_error.x = x - (historic_position_base.x + inav.position_correction.x);
-			inav.position_error.y = y - (historic_position_base.y + inav.position_correction.y);
+			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
+							x_cm, inav.position_base.x, inav.position_correction.x);
+
+			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
+			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
 		}
 	}
-	inav.flag_gps_glitching = isGPSGlitching();
+	inav.flag_gps_glitching = glitching_status;
 
 }
 
@@ -136,16 +198,134 @@ static void checkGPS(void)
 		}
 	}
 }
+/**
+ * @brief checks if the external position sensor is glitching
+ */
+static int isExtPosGlitching(void)
+{
+	int all_ok = 1;
+	return (!all_ok);
+}
+
+/**
+ * @brief correct the inav with updates from the external navigation sensor(vision/px4flow)
+ */
+static void correctWithExtPos(float dt)
+{
+	//discard samples if dt is too large
+	if(dt > 1.0f || dt <= 0.0f)
+		return;
+
+//	x_cm = sens_ext_pos.position.x*100;
+//	y_cm = sens_ext_pos.position.y*100;
+	float z = sens_ext_pos.position.z*100;
+
+//	debug("GPS lat is %d; GPS lng is %d;", sens_gps.lat, sens_gps.lng);
+//	debug("GPS x is %f; GPS y is %f; deltat is %f",x,y,dt);
+
+	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
+	int glitching_status = isExtPosGlitching();
+	if(glitching_status)
+	{
+		// failed sanity check so degrate position_error to 10% over 2 seconds (assumes 10hz update rate)
+//		inav.position_error.x *= 0.7943f;
+//		inav.position_error.y *= 0.7943f;
+		inav.position_error.z *= 0.8859f;
+	}
+	else
+	{
+		// if our internal glitching flag (from previous iteration) is true we have just recovered from a glitch
+		// reset the inertial nav position and velocity to gps values
+		if(inav.flag_ext_pos_glitching == 1)
+		{
+			debug("Z ext_pos position base %f; position correction is %f; position_error is %f",
+							inav.position_base.z, inav.position_correction.z, inav.position_error.z);
+//			setPositionXY(x_cm,y_cm);
+			setAltitude(z);
+			inav.position_error.z = 0;
+		}
+		else
+		{
+			Vector3f historic_position_base;
+
+//			if(inav.historic_x_property.is_full)
+//			{
+//				historic_position_base.x = popQueue(inav.historic_x, &inav.historic_x_property);
+//				historic_position_base.y = popQueue(inav.historic_y, &inav.historic_y_property);
+//			}
+//			else
+//			{
+//				historic_position_base.x = inav.position_base.x;
+//				historic_position_base.y = inav.position_base.y;
+//			}
+			if(inav.historic_z_property.is_full)
+				historic_position_base.z = popQueue(inav.historic_z, &inav.historic_z_property);
+			else
+				historic_position_base.z = inav.position_base.z;
+
+			debug("position from ext_pos is %f; historic_position_base is %f; position_correction is %f",
+							z, inav.position_base.z, inav.position_correction.z);
+
+//			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
+//			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
+			inav.position_error.z = z - (historic_position_base.z + inav.position_correction.z);
+		}
+	}
+	inav.flag_ext_pos_glitching = glitching_status;
+
+}
+
+/**
+ * @brief update navigation velocity and position based on EXternal Position feedback if new available
+ */
+static void checkExtPos(void)
+{
+	uint32_t now = millis();
+
+	if( sens_ext_pos.stamp > inav.ext_pos_last)
+	{
+		float dt = (sens_ext_pos.stamp - inav.ext_pos_last)*0.001f;
+		inav.ext_pos_last_update = now;
+		correctWithExtPos(dt);
+		inav.ext_pos_last = sens_ext_pos.stamp;
+	}
+	else
+	{
+		// if EXT POS updates stop arriving degrade position error to 10% over 2 seconds (assumes 100hz update rate)
+		if (now - inav.ext_pos_last_update > AP_INTERTIALNAV_GPS_TIMEOUT_MS)
+		{
+//			inav.position_error.x *= 0.9886f;
+//			inav.position_error.y *= 0.9886f;
+			inav.position_error.z *= 0.9886f;
+		}
+	}
+}
+
 
 void initializeHome()
 {
 	//wait for some proper measurement from the GPS
-	while(sens_gps.stamp == 0)
-		delay(10);
+	bool flag_GPS_HOME_FOUND = 0;
+	while(!flag_GPS_HOME_FOUND)
+	{
+		//wait till a location close to 50KM radius of IITK is found from GPS
+		//TODO change this to using HDOP or something
+		//right now not getting that data so can't do much
+		debug("GPS lat is : %d; GPS long is : %d", sens_gps.lat, sens_gps.lng);
+		if((fabs(sens_gps.lat*1e-7 - 26.5) + fabs(sens_gps.lng*1e-7 - 80.2)) < 1)
+			flag_GPS_HOME_FOUND = 1;
+		delay(100);
+	}
 
-	//as soon as a proper GPS lock signal is obtained
 	ahrs.lat_home = sens_gps.lat;
 	ahrs.lng_home = sens_gps.lng;
+	inav.last_good_lat = sens_gps.lat;
+	inav.last_good_lng = sens_gps.lng;
+	inav.last_good_gps_update = sens_gps.stamp;
+
+	//as soon as a proper GPS lock signal is obtained
+
+	inav.lon_to_cm_scaling = cosf(ahrs.lat_home*1e-7f*DEG_TO_RAD)*LATLON_TO_CM;
 
 	setupHomePosition();
 }
@@ -171,7 +351,7 @@ void setupHomePosition()
 
 }
 
-void init()
+void initINAV()
 {
 	// initialize the queues
 	inav.historic_xy_counter = 0;
@@ -196,7 +376,6 @@ void init()
 	//TODO initialize other variables
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
 	//z components of position, position_correction, position_base, position_error and velocity remaining
-	//gps_last and gps_last_update are remaining
 
 }
 
@@ -231,11 +410,16 @@ void updateINAV(uint32_t del_t)
 {
 	float dt = del_t * 0.001f;
 
+//	debug("delta_time for INAV is %f", dt);
+
 	if(dt > INERTIAL_NAV_DELTAT_MAX)
 		return;
 
 	// check if new gps readings have arrived and use them to correct position estimates
 	checkGPS();
+
+	// check if new readings have arrives from the external position sensor on the OBC
+	checkExtPos();
 
 	Vector3f accel_ef;
 
@@ -301,6 +485,7 @@ void updateINAV(uint32_t del_t)
 	{
 		inav.historic_xy_counter = 0;
 		pushToQueue(inav.position_base.x, inav.historic_x, &inav.historic_x_property);
+//		printQueue(inav.historic_x, inav.historic_x_property);
 		pushToQueue(inav.position_base.y, inav.historic_y, &inav.historic_y_property);
 	}
 

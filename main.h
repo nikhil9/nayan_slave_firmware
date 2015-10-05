@@ -30,11 +30,21 @@ typedef struct
 typedef struct
 {
 	uint32_t stamp;
-	uint32_t lat;
-	uint32_t lng;
+	int32_t lat;
+	int32_t lng;
 	float alt;
 }Sensor_GPS;
 
+/**
+ * @brief struct to acquire data from an external position sensor such as a vision based system
+ */
+typedef struct
+{
+	uint32_t stamp;
+	uint64_t obc_stamp;
+	Vector3f position;
+	float yaw;
+}Sensor_ExtPos;
 /**
  * @brief stores the current attitude and the trigonometric values for future use
  */
@@ -43,8 +53,8 @@ typedef struct
 	uint32_t stamp;
 	Vector3f attitude;
 
-	uint32_t lat_home;
-	uint32_t lng_home;
+	int32_t lat_home;
+	int32_t lng_home;
 	float alt_home;
 
 	float sin_phi, cos_phi;
@@ -58,25 +68,18 @@ extern Sensor_IMU sens_imu; /**< struct holding current imu variables #sens_imu.
 
 extern Sensor_GPS sens_gps;
 
+extern Sensor_ExtPos sens_ext_pos;
+
 extern AHRS ahrs;
 
 extern vector_3f velocity;
 extern uint16_t rc_in[7];
 
-//variables for control_system_state
-extern float vel_variance[3];
-extern float pos_variance[3];
+//variables for sim_state
 extern float q[4];
 
-/* Extra variables added by atulya for communication with odroid*/
-/*--------------------------------------------------------------*/
-extern vector_3f vis_pos_inp;
-extern uint64_t prev_vis_inp_time;
-extern uint64_t vis_inp_time;
-
-extern vector_3f vis_pos;
-
-extern vector_3f vis_vel;
-/*--------------------------------------------------------------*/
+//TODO remove the temp variables after use
+extern float x_cm;
+extern float y_cm;
 
 #endif /* MAIN_H_ */

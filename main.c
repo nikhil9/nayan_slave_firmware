@@ -32,6 +32,9 @@ uint16_t rc_in[7];
  * @return 0
  */
 
+float x_cm = 0;
+float y_cm = 0;
+
 vector_3f vis_pos_inp;
 uint64_t prev_vis_inp_time;
 uint64_t vis_inp_time;
@@ -44,6 +47,8 @@ Sensor_IMU sens_imu;
 uint32_t last_imu_stamp;
 Sensor_GPS sens_gps;
 uint32_t last_gps_stamp;
+Sensor_ExtPos sens_ext_pos;
+uint32_t last_ext_pos_stamp;
 
 AHRS ahrs;
 Inertial_nav_data inav;
@@ -59,36 +64,27 @@ int main(void){
 	delay(1000);
 
 	odroid_comm_init();
+	initINAV();
 
 	while(TRUE){
 /**
  * USER CODE GOES HERE
  */
+		uint32_t start = millis();
 		if(sens_imu.stamp > last_imu_stamp)
 		{
 			updateAHRS();
 			updateINAV(sens_imu.stamp - last_imu_stamp);
-		}
-		if(vis_inp_time != prev_vis_inp_time)
-		{
-			vis_vel.x = vis_inp_time - prev_vis_inp_time;
-			vis_vel.y = vis_pos_inp.y - vis_pos.y;
-			vis_vel.z = vis_pos_inp.z - vis_pos.z;
-			vis_pos = vis_pos_inp;
-			vis_pos.y = millis();
-			vis_pos.z = vis_vel.x;
-			prev_vis_inp_time = vis_inp_time;
+			last_imu_stamp = sens_imu.stamp;
 		}
 
-		debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
+		//debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
+		uint32_t end = millis();
 
-		vis_pos.x = (-123);
-		vis_pos.y = (float)100;
-		vis_pos.z = sens_imu.accel_calib.z;
-		q[0] = 0.2;
-		q[1] = 0.3;
-		q[2] = 0.4;
-		q[3] = 1;
+//		debug("position base %f; position correction is %f; position_error is %f",
+//				inav.position_base.x, inav.position_correction.x, inav.position_error.x);
+
+//		debug("lat home is: %d; lng_home is: %d", ahrs.lat_home, ahrs.lng_home);
 
 		delay(10);
 	}

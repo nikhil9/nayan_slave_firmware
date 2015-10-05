@@ -136,17 +136,17 @@ static void send_sim_state(void)
 			ahrs.accel_ef.x,
 			ahrs.accel_ef.y,
 			ahrs.accel_ef.z,
-			sens_imu.gyro_calib.x,
-			sens_imu.gyro_calib.y,
-			sens_imu.gyro_calib.z,
+			velocity.x,
+			velocity.y,
+			velocity.z,
 			inav.position.x,
 			inav.position.y,
 			inav.position.z,
 			0,
 			0,
-			sens_imu.accel_calib.x,
-			sens_imu.accel_calib.y,
-			sens_imu.accel_calib.z
+			inav.velocity.x,
+			inav.velocity.y,
+			inav.velocity.z
 			);
 }
 
@@ -162,11 +162,11 @@ static msg_t mavlinkSend(void *arg) {
 
   uint16_t hbt_cnt = 0;
 
-  uint16_t gps_cnt = 0;
+  uint16_t gps_cnt = 1;
 
   uint16_t rc_cnt = 0;
 
-  uint16_t vis_cnt = 0;
+  uint16_t vis_cnt = 2;
 
   while (TRUE) {
 
@@ -185,7 +185,7 @@ static msg_t mavlinkSend(void *arg) {
 		  vis_cnt = 0;
 	  }
 
-	  if(gps_cnt > 40){
+	  if(gps_cnt > 4){
 		  send_gps();
 		  gps_cnt = 0;
 	  }
@@ -317,10 +317,11 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
     	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
-    	vis_pos_inp.x = vision_position_inp.x;
-    	vis_pos_inp.y = vision_position_inp.y;
-    	vis_pos_inp.z = vision_position_inp.z;
-    	vis_inp_time = vision_position_inp.usec;
+    	sens_ext_pos.position.x = vision_position_inp.x;
+    	sens_ext_pos.position.y = vision_position_inp.y;
+    	sens_ext_pos.position.z = vision_position_inp.z;
+    	sens_ext_pos.obc_stamp = vision_position_inp.usec;
+    	sens_ext_pos.stamp = millis();
 
     	break;
     }
