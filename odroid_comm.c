@@ -130,18 +130,18 @@ static void send_sim_state(void)
 			q[1],
 			q[2],
 			q[3],
-			ahrs.attitude.x,
-			ahrs.attitude.y,
-			ahrs.attitude.z,
+			x_cm,
+			y_cm,
+			sens_ext_pos.yaw,
 			ahrs.accel_ef.x,
 			ahrs.accel_ef.y,
 			ahrs.accel_ef.z,
 			velocity.x,
 			velocity.y,
 			velocity.z,
-			inav.position.x,
-			inav.position.y,
-			inav.position.z,
+			sens_ext_pos.position.x,
+			sens_ext_pos.position.y,
+			sens_ext_pos.position.z,
 			0,
 			0,
 			inav.velocity.x,
@@ -179,7 +179,7 @@ static msg_t mavlinkSend(void *arg) {
 
 	  send_attitude();
 
-	  if(vis_cnt > 4)
+	  if(vis_cnt > 40)
 	  {
 		  send_sim_state();
 		  vis_cnt = 0;
@@ -320,6 +320,7 @@ void handleMessage(mavlink_message_t* msg)
     	sens_ext_pos.position.x = vision_position_inp.x;
     	sens_ext_pos.position.y = vision_position_inp.y;
     	sens_ext_pos.position.z = vision_position_inp.z;
+    	sens_ext_pos.yaw = vision_position_inp.yaw;
     	sens_ext_pos.obc_stamp = vision_position_inp.usec;
     	sens_ext_pos.stamp = millis();
 

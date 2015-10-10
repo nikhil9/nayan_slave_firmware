@@ -8,6 +8,7 @@
 #include "intercomm.h"
 #include "odroid_comm.h"
 #include "inertial_nav.h"
+#include "position_controller.h"
 
 
 //variables for state debugging via the mavlink message sim_state
@@ -52,6 +53,7 @@ uint32_t last_ext_pos_stamp;
 
 AHRS ahrs;
 Inertial_nav_data inav;
+Position_Controller pos_control;
 
 int main(void){
 
@@ -76,6 +78,14 @@ int main(void){
 			updateAHRS();
 			updateINAV(sens_imu.stamp - last_imu_stamp);
 			last_imu_stamp = sens_imu.stamp;
+		}
+
+		loiter_run();
+
+		if(sens_ext_pos.stamp > last_ext_pos_stamp)
+		{
+			last_ext_pos_stamp = sens_ext_pos.stamp;
+			debug("Yaw from vision is : %f and data is updated at %dms", sens_ext_pos.yaw, sens_ext_pos.stamp - last_ext_pos_stamp);
 		}
 
 		//debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);

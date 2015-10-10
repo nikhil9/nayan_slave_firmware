@@ -46,6 +46,16 @@ typedef struct
 	uint8_t is_empty;		/**< a flag for storing whether the buffer is empty*/
 }Queue_property;
 
+typedef struct
+{
+	float cutoff_freq;
+	float sampling_freq;
+	float alpha;
+
+	float output;				//system state on which lpf is applied
+}LowPassFilter;
+
+
 /**
  * @brief pops the first element of the queue and returns it
  * @param arr the array storing all the elements of the queue
@@ -68,5 +78,15 @@ float popQueue(float arr[], Queue_property *q_property);
  */
 void pushToQueue(float data, float arr[], Queue_property *q_property);
 
+////////////----Low Pass Filter-------/////////////
+// TODO
+void initializeLPF(LowPassFilter *lpf);
+
+// TODO
+void resetLPF(LowPassFilter *lpf, float val);
+
+// TODO
+void applyLPF(LowPassFilter *lpf, float input, float dt);
+////------------------------------------------////
 
 #endif /* AUTOPILOT_MATH_H_ */

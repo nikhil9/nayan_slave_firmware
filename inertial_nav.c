@@ -58,7 +58,7 @@ static int isGPSGlitching(void)
 	float dlong = sens_gps.lng - inav.last_good_lng;
 
 	float distance_cm = sqrt(dlat*dlat + dlong*dlong)*LATLON_TO_CM;
-	debug("distance to last_good_lat is %f", distance_cm);
+//	debug("distance to last_good_lat is %f", distance_cm);
 
 	int all_ok = 0;
 
@@ -163,8 +163,8 @@ static void correctWithGPS(float dt)
 				historic_position_base.y = inav.position_base.y;
 			}
 
-			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
-							x_cm, inav.position_base.x, inav.position_correction.x);
+//			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
+//							x_cm, inav.position_base.x, inav.position_correction.x);
 
 			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
 			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
