@@ -21,7 +21,6 @@
 #include "OS_PORT/ext/mavlink/v1.0/common/mavlink.h"
 #include "intercomm.h"
 #include "main.h"
-#include "inertial_nav.h"
 
 const float MILLIG_TO_MS2 = 9.80665f / 1000.0f;
 const float MS2_TO_MILLIG = 1000.0f/9.80665f;

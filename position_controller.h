@@ -5,64 +5,75 @@
  *      Author: atulya
  */
 
+#include "main.h"
+
 #ifndef POSITION_CONTROLLER_H_
 #define POSITION_CONTROLLER_H_
 
-#include "main.h"
+// position controller default definitions
+#define POSCONTROL_THROTTLE_HOVER               500.0f  // default throttle required to maintain hover
+#define POSCONTROL_ACCELERATION_MIN             50.0f   // minimum horizontal acceleration in cm/s/s - used for sanity checking acceleration in leash length calculation
+#define POSCONTROL_ACCEL_XY                     100.0f  // default horizontal acceleration in cm/s/s.  This is overwritten by waypoint and loiter controllers
+#define POSCONTROL_ACCEL_XY_MAX                 980.0f  // max horizontal acceleration in cm/s/s that the position velocity controller will ask from the lower accel controller
+#define POSCONTROL_STOPPING_DIST_Z_MAX          200.0f  // max stopping distance vertically
+                                                        // should be 1.5 times larger than POSCONTROL_ACCELERATION.
+                                                        // max acceleration = max lean angle * 980 * pi / 180.  i.e. 23deg * 980 * 3.141 / 180 = 393 cm/s/s
 
-/**
- * @brief updates the controller on the basis of PI on the error
- */
+#define POSCONTROL_SPEED                        500.0f  // default horizontal speed in cm/s
+#define POSCONTROL_SPEED_DOWN                  -150.0f  // default descent rate in cm/s
+#define POSCONTROL_SPEED_UP                     250.0f  // default climb rate in cm/s
+#define POSCONTROL_VEL_XY_MAX_FROM_POS_ERR      200.0f  // max speed output from pos_to_vel controller when feed forward is used
 
-typedef struct
-{
-	float kP;
-}Controller_P;
+#define POSCONTROL_ACCEL_Z                      250.0f  // default vertical acceleration in cm/s/s.
 
-typedef struct
-{
-	float kP;
-	float kI;
-	float Imax;
-	float filt_hz;
-	uint8_t reset_filter;
+#define POSCONTROL_LEASH_LENGTH_MIN             100.0f  // minimum leash lengths in cm
 
-	float dt;
-	float input;
-	float integrator;
-	float filt_alpha;
-	float result;
-}Controller_PI;
+#define POSCONTROL_DT_10HZ                      0.10f   // time difference in seconds for 10hz update rate
+#define POSCONTROL_DT_50HZ                      0.02f   // time difference in seconds for 50hz update rate
 
-typedef struct
-{
-	float kP;
-	float kI;
-	float kD;
-	float Imax;
-	float filt_hz;
-	uint8_t reset_filter;
+#define POSCONTROL_ACTIVE_TIMEOUT_MS            200     // position controller is considered active if it has been called within the past 0.2 seconds
 
-	float dt;
-	float input;
-	float integrator;
-	float derivative;
-	float filt_alpha;
-	float result;
-}Controller_PID;
+#define POSCONTROL_VEL_ERROR_CUTOFF_FREQ        4.0f    // low-pass filter on velocity error (unit: hz)
+#define POSCONTROL_THROTTLE_CUTOFF_FREQ         2.0f    // low-pass filter on accel error (unit: hz)
+#define POSCONTROL_JERK_LIMIT_CMSSS             1700.0f // jerk limit on horizontal acceleration (unit: m/s/s/s)
+#define POSCONTROL_ACCEL_FILTER_HZ              2.0f    // low-pass filter on acceleration (unit: hz)
+#define POSCONTROL_JERK_RATIO                   1.0f    // Defines the time it takes to reach the requested acceleration
+#define XY_MODE_POS_ONLY 						0       // position correction only (i.e. no velocity feed-forward)
+#define XY_MODE_POS_LIMITED_AND_VEL_FF			1	    // for loiter - rate-limiting the position correction, velocity feed-forward
+#define XY_MODE_POS_AND_VEL_FF					2		// for velocity controller - unlimied position correction, velocity feed-forward
 
-
-
+///////////Constants defined by atulya ///////////
+#define MAX_LEAN_ANGLE							1500	//in centidegrees
 /**
  * @brief defines the struct for handling the position controller
  */
 typedef struct
 {
-	float       p_pos_z;
-	float       p_vel_z;
+	struct poscontrol_flags {
+	            uint16_t recalc_leash_z     : 1;    // 1 if we should recalculate the z axis leash length
+	            uint16_t recalc_leash_xy    : 1;    // 1 if we should recalculate the xy axis leash length
+	            uint16_t reset_desired_vel_to_pos   : 1;    // 1 if we should reset the rate_to_accel_xy step
+	            uint16_t reset_rate_to_accel_xy     : 1;    // 1 if we should reset the rate_to_accel_xy step
+	            uint16_t reset_accel_to_lean_xy     : 1;    // 1 if we should reset the accel to lean angle step
+	            uint16_t reset_rate_to_accel_z      : 1;    // 1 if we should reset the rate_to_accel_z step
+	            uint16_t reset_accel_to_throttle    : 1;    // 1 if we should reset the accel_to_throttle step of the z-axis controller
+	            uint16_t freeze_ff_xy       : 1;    // 1 use to freeze feed forward during step updates
+	            uint16_t freeze_ff_z        : 1;    // 1 use to freeze feed forward during step updates
+	    } _flags;
+
+	struct poscontrol_limit_flags {
+			uint8_t pos_up      : 1;    // 1 if we have hit the vertical position leash limit while going up
+			uint8_t pos_down    : 1;    // 1 if we have hit the vertical position leash limit while going down
+			uint8_t vel_up      : 1;    // 1 if we have hit the vertical velocity limit going up
+			uint8_t vel_down    : 1;    // 1 if we have hit the vertical velocity limit going down
+			uint8_t accel_xy    : 1;    // 1 if we have hit the horizontal accel limit
+		} _limit;
+
+	Controller_P       _p_pos_z;
+	Controller_P       _p_vel_z;
 	Controller_PID     _pid_accel_z;
-	float	    _p_pos_xy;
-	Controller_PI   _pi_vel_xy;
+	Controller_P	   _p_pos_xy;
+	Controller_PI_2D      _pi_vel_xy;
 
 	// parameters
 	float    accel_xy_filt_hz;      // XY acceleration filter cutoff frequency
@@ -99,74 +110,28 @@ typedef struct
 	Vector3f    accel_feedforward;     // feedforward acceleration in cm/s/s
 	float       alt_max;               // max altitude - should be updated from the main code with altitude limit from fence
 	float       distance_to_target;    // distance to position target - for reporting only
-//	LowPassFilterFloat vel_error_filter;   // low-pass-filter on z-axis velocity error
+	LowPassFilter vel_error_filter;   // low-pass-filter on z-axis velocity error
 
 	Vector2f    accel_target_jerk_limited; // acceleration target jerk limited to 100deg/s/s
-//	LowPassFilterVector2f accel_target_filter; // acceleration target filter
+	LowPassFilter accel_target_filter_x; // acceleration target filter
+	LowPassFilter accel_target_filter_y; // acceleration target filter
 
 	Vector3f pos_desired;
 
 }Position_Controller;
 
-extern Position_Controller pos_control;
 
-/**
- * @brief sets the desired acceleration by taking feedback from the pilot input TODO
- */
-void setPilotDesiredAcceleration(void);
+void setAttitude(void);
 
-/**
- * @brief sets the desired velocity from the pilot desired acceleration TODO
- */
-void setPilotDesiredvelocity(void);
+void setAltTargetfromClimbRate(float climb_rate_cms, float dt);
+
+void setThrottleOut(float throttle_in, uint8_t apply_angle_boost);
 
 /**
  * @brief updates the position controller on the basis of feedback from INAV and using the desired position and velocity from above TODO
  */
-void updateXYController(void);
+void updateXYController(int mode, int use_althold_lean_angle);
 
-/**
- * @brief executes the loiter code TODO
- */
-void loiter_run(void);
+void updateZController(void);
 
-////////////////CONTROLLER LIBRARIES/////////////////////
-
-/////////////------------PI-----------////////////
-
-// reset_I - reset the integrator TODO
-void resetPI_I(Controller_PI *pi);
-
-// reset_filter - input filter will be reset to the next value provided to set_input() TODO
-void resetPI_filter(Controller_PI *pi);
-
-// TODO
-void initializePI(Controller_PI *pi);
-
-// TODO
-void setPIInput(Controller_PI *pi, float input, float dt);
-
-// TODO
-void updatePIOutput(Controller_PI *pi);
-
-////////////////////////PID///////////////////////
-// resetPID_I - reset the integrator TODO
-void resetPID_I(Controller_PID *pid);
-
-// reset_filter - input filter will be reset to the next value provided to set_input() TODO
-void resetPID_filter(Controller_PID *pid);
-
-//initialize the PID controller TODO
-void intializePID(Controller_PID *pid);
-
-/**
- * @brief updates the input and dt of the given PID controller TODO
- */
-void setPIDInputFilterAll(Controller_PID *pid, float input, float dt);
-
-/**
- * @brief gives the result of the PID controller acted on the input  TODO
- */
-void updatePIDOutput(Controller_PID *pid);
-//////////////////////////////////////////////////
 #endif /* POSITION_CONTROLLER_H_ */

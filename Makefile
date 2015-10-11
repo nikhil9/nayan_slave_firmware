@@ -100,6 +100,7 @@ CSRC = $(PORTSRC) \
        inertial_nav.c \
        autopilot_math.c \
        position_controller.c\
+       wp_nav.c\
        main.c
        
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global

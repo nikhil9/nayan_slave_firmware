@@ -12,14 +12,13 @@
  * @brief This file implements the basic inertial navigation system using a complementary filter
  */
 
+#include "main.h"
+
 #ifndef INERTIAL_NAV_H_
 #define INERTIAL_NAV_H_
 
 #define GRAVITY_MSS 					9.80665f
 #define GRAVITY_CMSS 					100*GRAVITY_MSS
-#define M_PI_F 3.141592653589793f
-#define DEG_TO_RAD 0.017453292519943295769236907684886f
-#define RAD_TO_DEG 57.295779513082320876798154814105f
 #define LATLON_TO_CM 1.113195f
 
 #define INERTIAL_NAV_DELTAT_MAX 		0.1
@@ -81,8 +80,6 @@ typedef struct
 	Queue_property historic_z_property;
 
 }Inertial_nav_data;
-
-extern Inertial_nav_data inav; /**< data structure storing the inertial navigation crucial data #inav. */
 
 /**
  * @brief update the INS system on the basis of new data

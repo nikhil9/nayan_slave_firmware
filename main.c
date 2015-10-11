@@ -6,10 +6,6 @@
 #include "main.h"
 #include "Setup.h"
 #include "intercomm.h"
-#include "odroid_comm.h"
-#include "inertial_nav.h"
-#include "position_controller.h"
-
 
 //variables for state debugging via the mavlink message sim_state
 float q[4];
@@ -54,6 +50,7 @@ uint32_t last_ext_pos_stamp;
 AHRS ahrs;
 Inertial_nav_data inav;
 Position_Controller pos_control;
+WP_Nav wp_nav;
 
 int main(void){
 
@@ -72,7 +69,7 @@ int main(void){
 /**
  * USER CODE GOES HERE
  */
-		uint32_t start = millis();
+//		uint32_t start = millis();
 		if(sens_imu.stamp > last_imu_stamp)
 		{
 			updateAHRS();
@@ -89,7 +86,7 @@ int main(void){
 		}
 
 		//debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
-		uint32_t end = millis();
+//		uint32_t end = millis();
 
 //		debug("position base %f; position correction is %f; position_error is %f",
 //				inav.position_base.x, inav.position_correction.x, inav.position_error.x);

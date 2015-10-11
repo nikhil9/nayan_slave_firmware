@@ -5,10 +5,8 @@
  *      Author: atulya
  */
 
-#include <math.h>
 
 #include "main.h"
-#include "inertial_nav.h"
 
 static void printQueue(float arr[], Queue_property q_property)
 {

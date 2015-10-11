@@ -13,6 +13,13 @@
 #include "Setup.h"
 #include "intercomm.h"
 #include "autopilot_math.h"
+#include "inertial_nav.h"
+#include "position_controller.h"
+#include "wp_nav.h"
+
+#define M_PI_F 3.141592653589793f
+#define DEG_TO_RAD 0.017453292519943295769236907684886f
+#define RAD_TO_DEG 57.295779513082320876798154814105f
 
 /**
  * @brief stores the raw imu variables acceleration and the angular velocity
@@ -65,12 +72,13 @@ typedef struct
 }AHRS;
 
 extern Sensor_IMU sens_imu; /**< struct holding current imu variables #sens_imu.*/
-
 extern Sensor_GPS sens_gps;
-
 extern Sensor_ExtPos sens_ext_pos;
 
 extern AHRS ahrs;
+extern Inertial_nav_data inav; /**< data structure storing the inertial navigation crucial data #inav. */
+extern Position_Controller pos_control;
+extern WP_Nav wp_nav;
 
 extern vector_3f velocity;
 extern uint16_t rc_in[7];
