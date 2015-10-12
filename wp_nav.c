@@ -7,32 +7,100 @@
 
 #include "main.h"
 
+void initializeWPNav()
+{
+	wp_nav._loiter_step = 0;
+	wp_nav._pilot_accel_fwd_cms = 0;
+	wp_nav._pilot_accel_rgt_cms = 0;
+	wp_nav._wp_last_update = 0;
+	wp_nav._wp_step = 0;
+	wp_nav._track_length = 0;
+	wp_nav._track_desired = 0.0f;
+	wp_nav._limited_speed_xy_cms = 0.0f;
+	wp_nav._track_accel = 0.0f;
+	wp_nav._track_speed = 0.0f;
+	wp_nav._track_leash_length = 0.0f;
+	wp_nav._slow_down_dist = 0.0f;
+	wp_nav._spline_time = 0.0f;
+	wp_nav._spline_time_scale = 0.0f;
+	wp_nav._spline_vel_scaler = 0.0f;
+	wp_nav._yaw = 0.0f;
+
+	// init flags
+	wp_nav._flags.reached_destination = 0;
+	wp_nav._flags.fast_waypoint = 0;
+	wp_nav._flags.slowing_down = 0;
+	wp_nav._flags.recalc_wp_leash = 0;
+	wp_nav._flags.new_wp_destination = 0;
+}
+
 void loiter_run()
 {
-	setPilotDesiredAcceleration();
+	uint32_t now = millis();
+	float dt = now - pos_control.last_update_z_ms;
 
+	// run at pilot_input update rate.
+	if (dt >= wp_nav._dt_pilot_inp)
+	{
+		// sanity check dt
+		if (dt >= 0.2f) {
+			dt = 0.0f;
+		}
+		getPilotDesiredAcceleration();
+		getPilotDesiredYawRate();
+		getPilotClimbRate();
+	}
 	updateLoiter();
 
 	//TODO set the roll pitch yaw angles for the lower level controller
 	setAttitude();
 
-	//getPilotDesired climb rate
-	setClimbRate();
+	updateAltHold();
 
 	//set target altitude based on the desired climb rate
-//	setAltTargetfromClimbRate();
-
-	updateZController();
 }
 
-void setPilotDesiredAcceleration()
+void getPilotDesiredAcceleration()
 {
-	//TODO use the variable rc_in to send inputs in any given range
+	//TODO set the channel mapping properly
+	int16_t control_pitch = (rc_in[0] - 2048);
+	int16_t control_roll = (rc_in[1] - 2048);
+	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / 4500.0f;
+	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / 4500.0f;
 }
 
-void setClimbRate()
+void getPilotDesiredYawRate()
 {
-	//TODO set the climb rate assuming that pilot input and sonar are available
+	wp_nav._pilot_desired_yaw_rate = (rc_in[2] - 2048)*STICK_TO_DEGREEPSS;
+}
+
+void getPilotClimbRate()
+{
+	//TODO correct the values of constants so that they are in accordance with the nayan platform
+	float desired_rate;
+
+	float deadband_top = MID_STICK + THROTTLE_DEADZONE;
+	float deadband_bottom = MID_STICK - THROTTLE_DEADZONE;
+
+	// ensure a reasonable throttle value
+	float throttle_control = constrain_float(rc_in[3],THROTTLE_MIN,THROTTLE_MAX);
+
+
+	// check throttle is above, below or in the deadband
+	if (throttle_control < deadband_bottom)
+	{
+		// below the deadband
+		desired_rate = wp_nav._pilot_max_z_velocity * (throttle_control-deadband_bottom) / (deadband_bottom-THROTTLE_MIN);
+	}else
+		if (throttle_control > deadband_top)
+	        desired_rate = wp_nav._pilot_max_z_velocity * (throttle_control-deadband_top) / (THROTTLE_MAX-deadband_top);
+	    else{
+	        // must be in the deadband
+	        desired_rate = 0.0f;
+	    }
+
+	wp_nav._pilot_desired_climb_rate = desired_rate;
+
 }
 
 static void calcLoiterDesiredVelocity(float nav_dt)
@@ -126,5 +194,23 @@ void updateLoiter()
 		}
 		calcLoiterDesiredVelocity(dt);
 		updateXYController(XY_MODE_POS_LIMITED_AND_VEL_FF, 1);//TODO check out which mode is better
+	}
+}
+
+void updateAltHold()
+{
+	float dt = millis() - pos_control.last_update_z_ms;
+
+	// run at poscontrol update rate.
+	// TODO: (something present on original code)run on user input to reduce latency, maybe if (user_input || dt >= _pos_control.get_dt_xy())
+	if (dt >= pos_control.dt)
+	{
+		// sanity check dt
+		if (dt >= 0.2f) {
+			dt = 0.0f;
+		}
+
+		setAltTargetfromClimbRate(wp_nav._pilot_desired_climb_rate, pos_control.dt);
+		updateZController();
 	}
 }

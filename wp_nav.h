@@ -10,6 +10,12 @@
 #ifndef WP_NAV_H_
 #define WP_NAV_H_
 
+#define STICK_TO_DEGREEPSS			1.0
+#define MID_STICK					2048
+#define THROTTLE_DEADZONE			300
+#define THROTTLE_MIN				1000
+#define THROTTLE_MAX				4000
+
 typedef struct ap_waypoint_nav
 {
 	float    _loiter_speed_cms;      // maximum horizontal speed in cm/s while in loiter
@@ -23,10 +29,23 @@ typedef struct ap_waypoint_nav
     float    _wp_accel_cms;          // horizontal acceleration in cm/s/s during missions
     float    _wp_accel_z_cms;        // vertical acceleration in cm/s/s during missions
 
+    struct wpnav_flags {
+            uint8_t reached_destination     : 1;    // true if we have reached the destination
+            uint8_t fast_waypoint           : 1;    // true if we should ignore the waypoint radius and consider the waypoint complete once the intermediate target has reached the waypoint
+            uint8_t slowing_down            : 1;    // true when target point is slowing down before reaching the destination
+            uint8_t recalc_wp_leash         : 1;    // true if we need to recalculate the leash lengths because of changes in speed or acceleration
+            uint8_t new_wp_destination      : 1;    // true if we have just received a new destination.  allows us to freeze the position controller's xy feed forward
+        } _flags;
+
     // loiter controller internal variables
     uint8_t     _loiter_step;           // used to decide which portion of loiter controller to run during this iteration
     int16_t     _pilot_accel_fwd_cms; 	// pilot's desired acceleration forward (body-frame)
     int16_t     _pilot_accel_rgt_cms;   // pilot's desired acceleration right (body-frame)
+    int16_t     _pilot_desired_yaw_rate;// pilot's desired yaw rate		IGNORE added by atulya
+    int16_t     _pilot_desired_climb_rate;// pilot's desired climb rate in cms	IGNORE added by atulya
+    int16_t		_pilot_max_z_velocity;	//max z velocity from the pilot	IGNORE added by atulya
+    uint32_t	_last_pilot_update_ms;	//timestamp of the last update performed by the pilot inputs to the loiter code IGNORE
+    float		_dt_pilot_inp;			//time duration in which to check the pilot input
     Vector2f    _loiter_desired_accel;  // slewed pilot's desired acceleration in lat/lon frame
 
     // waypoint controller internal variables
@@ -53,12 +72,14 @@ typedef struct ap_waypoint_nav
     float       _yaw;                   // heading according to yaw
 }WP_Nav;
 
-void updateLoiter(void);				//TODO
+void updateLoiter(void);
 
 void loiter_run(void);					//TODO
 
-void setPilotDesiredAcceleration(void);	//TODO
+void getPilotDesiredAcceleration(void);
+void getPilotDesiredYawRate(void);
+void getPilotClimbRate(void);
 
-void setClimbRate(void);				//TODO
+void updateAltHold(void);
 
 #endif /* WP_NAV_H_ */

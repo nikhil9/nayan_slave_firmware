@@ -6,6 +6,7 @@
 #include "main.h"
 #include "Setup.h"
 #include "intercomm.h"
+#include "odroid_comm.h"
 
 //variables for state debugging via the mavlink message sim_state
 float q[4];
@@ -28,6 +29,7 @@ uint16_t rc_in[7];
  * main() function with system initialization
  * @return 0
  */
+
 
 float x_cm = 0;
 float y_cm = 0;
@@ -63,7 +65,14 @@ int main(void){
 	delay(1000);
 
 	odroid_comm_init();
+
 	initINAV();
+
+	//intialize the position_controller
+	initializePosController();
+
+	//intialize the wp_nav
+	initializeWPNav();
 
 	while(TRUE){
 /**
@@ -81,6 +90,7 @@ int main(void){
 
 		if(sens_ext_pos.stamp > last_ext_pos_stamp)
 		{
+
 			last_ext_pos_stamp = sens_ext_pos.stamp;
 			debug("Yaw from vision is : %f and data is updated at %dms", sens_ext_pos.yaw, sens_ext_pos.stamp - last_ext_pos_stamp);
 		}

@@ -168,7 +168,7 @@ float applyLPF(LowPassFilter *lpf, float input, float dt);
 
 /////////////------------PI-----------////////////
 
-void initializePI(Controller_PI_2D *pi);
+void intializePI(Controller_PI_2D *pi, float kP, float kI);
 void setPIInput(Controller_PI_2D *pi, Vector2f input, float dt);
 void resetPI_I(Controller_PI_2D *pi);
 Vector2f getPI_P(Controller_PI_2D *pi);
@@ -177,7 +177,7 @@ Vector2f getPI_I_shrink(Controller_PI_2D *pi);
 
 ////////////////////////PID///////////////////////
 
-void intializePID(Controller_PID *pid);
+void intializePID(Controller_PID *pid, float kP, float kI, float kD);
 void setPIDInput_FilterAll(Controller_PID *pid, float input);
 void setPIDInput_FilterD(Controller_PID *pid, float input);
 void resetPID_I(Controller_PID *pid);

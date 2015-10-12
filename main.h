@@ -31,6 +31,7 @@ typedef struct
 	Vector3f gyro_calib; /**> angular velocity as measured in the body frame by imu #angular_velocity.*/
 }Sensor_IMU;
 
+
 /**
  * @brief stores the gps latitude and longitude data along with the fused altitude
  */

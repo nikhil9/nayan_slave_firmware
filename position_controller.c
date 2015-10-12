@@ -6,6 +6,56 @@
  */
 #include "main.h"
 
+void initializePosController()
+{
+	//TODO initialize these constants
+	pos_control._p_pos_z.kP = 0;
+	pos_control._p_vel_z.kP = 0;
+	intializePID(&pos_control._pid_accel_z, 0, 0, 0);
+	pos_control._p_pos_xy.kP = 0;
+	initializePI(&pos_control._pi_vel_xy, 0, 0);
+
+	pos_control.dt = POSCONTROL_DT_100HZ;
+	pos_control.dt_xy = POSCONTROL_DT_100HZ;
+	pos_control.last_update_xy_ms = 0;
+	pos_control.last_update_z_ms = 0;
+	pos_control.throttle_hover = POSCONTROL_THROTTLE_HOVER;
+	pos_control.speed_down_cms = POSCONTROL_SPEED_DOWN;
+	pos_control.speed_up_cms = POSCONTROL_SPEED_UP;
+	pos_control.speed_cms = POSCONTROL_SPEED;
+	pos_control.accel_z_cms = POSCONTROL_ACCEL_Z;
+	pos_control.accel_last_z_cms = 0.0f;
+	pos_control.accel_cms = POSCONTROL_ACCEL_XY;
+	pos_control.leash = POSCONTROL_LEASH_LENGTH_MIN;
+	pos_control.leash_down_z = POSCONTROL_LEASH_LENGTH_MIN;
+	pos_control.leash_up_z = POSCONTROL_LEASH_LENGTH_MIN;
+	pos_control.roll_target = 0.0f;
+	pos_control.pitch_target = 0.0f;
+	pos_control.alt_max = POSCONTROL_MAX_ALTITUDE;
+	pos_control.distance_to_target = 0.0f;
+	pos_control.accel_target_jerk_limited.x = 0.0f;
+	pos_control.accel_target_jerk_limited.y = 0.0f;
+	pos_control.accel_target_filter_x.cutoff_freq = POSCONTROL_ACCEL_FILTER_HZ;
+	pos_control.accel_target_filter_y.cutoff_freq = POSCONTROL_ACCEL_FILTER_HZ;
+
+	// initialise flags
+	pos_control._flags.recalc_leash_z = 1;
+	pos_control._flags.recalc_leash_xy = 1;
+	pos_control._flags.reset_desired_vel_to_pos = 1;
+	pos_control._flags.reset_rate_to_accel_xy = 1;
+	pos_control._flags.reset_accel_to_lean_xy = 1;
+	pos_control._flags.reset_rate_to_accel_z = 1;
+	pos_control._flags.reset_accel_to_throttle = 1;
+	pos_control._flags.freeze_ff_xy = 1;
+	pos_control._flags.freeze_ff_z = 1;
+	pos_control._limit.pos_up = 1;
+	pos_control._limit.pos_down = 1;
+	pos_control._limit.vel_up = 1;
+	pos_control._limit.vel_down = 1;
+	pos_control._limit.accel_xy = 1;
+
+}
+
 /// calc_leash_length - calculates the horizontal leash length given a maximum speed, acceleration and position kP gain
 static float calcLeashLength(float speed_cms, float accel_cms, float kP)
 {
@@ -53,6 +103,26 @@ static void desiredVelToPos(float nav_dt)
         pos_control.pos_target.x += pos_control.vel_desired.x * nav_dt;
         pos_control.pos_target.y += pos_control.vel_desired.y * nav_dt;
     }
+}
+
+static float sqrtController(float error, float p, float second_ord_lim)
+{
+	if(second_ord_lim == 0 || p==0)
+		return error*p;
+
+	float linear_dist = second_ord_lim/(p*p);
+
+	if (error > linear_dist)
+	{
+		return safe_sqrt(2.0f*second_ord_lim*(error-(linear_dist/2.0f)));
+	}
+	else
+	{
+		if (error < -linear_dist)
+			return -safe_sqrt(2.0f*second_ord_lim*(-error-(linear_dist/2.0f)));
+		else
+			return error*p;
+	}
 }
 
 static void posToRateXY(int mode, float dt)
@@ -129,182 +199,8 @@ static void posToRateXY(int mode, float dt)
         }
     }
 }
-static float sqrtController(float error, float p, float second_ord_lim)
-{
-	if(second_ord_lim == 0 || p==0)
-		return error*p;
-
-	float linear_dist = second_ord_lim/(p*p);
-
-	if (error > linear_dist)
-	{
-		return safe_sqrt(2.0f*second_ord_lim*(error-(linear_dist/2.0f)));
-	}
-	else
-	{
-		if (error < -linear_dist)
-			return -safe_sqrt(2.0f*second_ord_lim*(-error-(linear_dist/2.0f)));
-		else
-			return error*p;
-	}
-}
-
 // accel_to_throttle - alt hold's acceleration controller
 // calculates a desired throttle which is sent directly to the motors
-static void accelToThrottle(float accel_target_z)
-{
-
-	float z_accel_meas;         // actual acceleration
-	float p,i,d;              // used to capture pid values for logging
-
-	// Calculate Earth Frame Z acceleration TODO check if this acceleration term is correct
-	z_accel_meas = -(ahrs.accel_ef.z*100 + GRAVITY_CMSS);
-
-	// reset target altitude if this controller has just been engaged
-	if (pos_control._flags.reset_accel_to_throttle)
-	{
-		// Reset Filter
-		pos_control.accel_error.z = 0;
-		pos_control._flags.reset_accel_to_throttle = 0;
-	}
-	else {
-		// calculate accel error
-		pos_control.accel_error.z = accel_target_z - z_accel_meas;
-	}
-
-	// set input to PID
-	setPIDInput_FilterD(&pos_control._pid_accel_z, pos_control.accel_error.z);
-
-	// separately calculate p, i, d values for logging
-	p = getPID_P(&pos_control._pid_accel_z);
-
-	// get i term
-	i = getPID_I(&pos_control._pid_accel_z);
-
-	//TODO add a check to ensure that when motors have reached throttle limit then do not integrate
-//	// update i term as long as we haven't breached the limits or the I term will certainly reduce
-//	// To-Do: should this be replaced with limits check from attitude_controller?
-//	    if ((!_motors.limit.throttle_lower && !_motors.limit.throttle_upper) || (i>0&&_accel_error.z<0) || (i<0&&_accel_error.z>0)) {
-//	        i = _pid_accel_z.get_i();
-//	    }
-
-	// get d term
-	d = getPID_D(&pos_control._pid_accel_z);
-
-	float thr_out = p+i+d+pos_control.throttle_hover;
-
-	// send throttle to attitude controller with angle boost
-	setThrottleOut(thr_out, 1);
-//	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);
-
-}
-static void rateToAccelZ(void)
-{
-	Vector3f curr_vel = inav.velocity;
-	float p;                                // used to capture pid values for logging
-
-	// check speed limits
-	// To-Do: check these speed limits here or in the pos->rate controller
-	pos_control._limit.vel_up = 0;
-	pos_control._limit.vel_down = 0;
-	if (pos_control.vel_target.z < pos_control.speed_down_cms)
-	{
-		pos_control.vel_target.z = pos_control.speed_down_cms;
-		pos_control._limit.vel_down = 1;
-	}
-	if (pos_control.vel_target.z > pos_control.speed_up_cms)
-	{
-		pos_control.vel_target.z = pos_control.speed_up_cms;
-		pos_control._limit.vel_up = 1;
-	}
-
-	// reset last velocity target to current target
-	if (pos_control._flags.reset_rate_to_accel_z)
-		pos_control.vel_last.z = pos_control.vel_target.z;
-
-
-	// feed forward desired acceleration calculation
-	if (pos_control.dt > 0.0f)
-	{
-	    	if (!pos_control._flags.freeze_ff_z)
-	    	{
-	    		pos_control.accel_feedforward.z = (pos_control.vel_target.z - pos_control.vel_last.z)/pos_control.dt;
-	        }
-	    	else
-	        {
-	    		// stop the feed forward being calculated during a known discontinuity
-	    		pos_control._flags.freeze_ff_z = 0;
-	    	}
-	}
-	else
-	{
-		pos_control.accel_feedforward.z = 0.0f;
-	}
-
-	// store this iteration's velocities for the next iteration
-	pos_control.vel_last.z = pos_control.vel_target.z;
-
-	// reset velocity error and filter if this controller has just been engaged
-	if (pos_control._flags.reset_rate_to_accel_z)
-	{
-		// Reset Filter
-		pos_control.vel_error.z = 0;
-		resetLPF(&pos_control.vel_error_filter, 0);
-		pos_control._flags.reset_rate_to_accel_z = 0;
-	}
-	else
-	{
-		// calculate rate error and filter with cut off frequency of 2 Hz
-	        pos_control.vel_error.z = applyLPF(&pos_control.vel_error_filter, pos_control.vel_target.z - curr_vel.z, pos_control.dt);
-	    }
-
-	    // calculate p
-	    p = pos_control._p_vel_z.kP * pos_control.vel_error.z;
-
-	    // consolidate and constrain target acceleration
-	    pos_control.accel_target.z = pos_control.accel_feedforward.z + p;
-
-	    // set target for accel based throttle controller
-	    accelToThrottle(pos_control.accel_target.z);
-
-}
-
-static void posToRateZ(void)
-{
-	float curr_alt = inav.position.z;
-
-	// clear position limit flags
-	pos_control._limit.pos_up = 0;
-	pos_control._limit.pos_down = 0;
-
-	// calculate altitude error
-	pos_control.pos_error.z = pos_control.pos_target.z - curr_alt;
-
-	// do not let target altitude get too far from current altitude
-	if (pos_control.pos_error.z > pos_control.leash_up_z)
-	{
-		pos_control.pos_target.z = curr_alt + pos_control.leash_up_z;
-		pos_control.pos_error.z = pos_control.leash_up_z;
-		pos_control._limit.pos_up = 1;
-	}
-	if (pos_control.pos_error.z < -pos_control.leash_down_z)
-	{
-		pos_control.pos_target.z = curr_alt - pos_control.leash_down_z;
-		pos_control.pos_error.z = -pos_control.leash_down_z;
-		pos_control._limit.pos_down = 1;
-	}
-
-	// calculate pos_control.vel_target.z using from pos_control.pos_error.z using sqrt controller
-	pos_control.vel_target.z = sqrtController(pos_control.pos_error.z, pos_control._p_pos_z.kP, pos_control.accel_z_cms);
-
-	// add feed forward component
-	pos_control.vel_target.z += pos_control.vel_desired.z;
-
-	// call rate based throttle controller which will update accel based throttle controller targets
-	rateToAccelZ();
-
-}
-
 static void rateToAccelXY(float dt)
 {
     const Vector3f vel_curr = inav.velocity;  // current velocity in cm/s
@@ -465,20 +361,160 @@ void updateXYController(int mode, int use_althold_lean_angle)
 
 }
 
-void setAttitude()
+static void accelToThrottle(float accel_target_z)
 {
-	//TODO use this data structure to give commmands to LLP ic_rc_or_data.ic_rc.rc1
+
+	float z_accel_meas;         // actual acceleration
+	float p,i,d;              // used to capture pid values for logging
+
+	// Calculate Earth Frame Z acceleration TODO check if this acceleration term is correct
+	z_accel_meas = -(ahrs.accel_ef.z*100 + GRAVITY_CMSS);
+
+	// reset target altitude if this controller has just been engaged
+	if (pos_control._flags.reset_accel_to_throttle)
+	{
+		// Reset Filter
+		pos_control.accel_error.z = 0;
+		pos_control._flags.reset_accel_to_throttle = 0;
+	}
+	else {
+		// calculate accel error
+		pos_control.accel_error.z = accel_target_z - z_accel_meas;
+	}
+
+	// set input to PID
+	setPIDInput_FilterD(&pos_control._pid_accel_z, pos_control.accel_error.z);
+
+	// separately calculate p, i, d values for logging
+	p = getPID_P(&pos_control._pid_accel_z);
+
+	// get i term
+	i = getPID_I(&pos_control._pid_accel_z);
+
+	//TODO add a check to ensure that when motors have reached throttle limit then do not integrate
+//	// update i term as long as we haven't breached the limits or the I term will certainly reduce
+//	// To-Do: should this be replaced with limits check from attitude_controller?
+//	    if ((!_motors.limit.throttle_lower && !_motors.limit.throttle_upper) || (i>0&&_accel_error.z<0) || (i<0&&_accel_error.z>0)) {
+//	        i = _pid_accel_z.get_i();
+//	    }
+
+	// get d term
+	d = getPID_D(&pos_control._pid_accel_z);
+
+	float thr_out = p+i+d+pos_control.throttle_hover;
+
+	// send throttle to attitude controller with angle boost
+	setThrottleOut(thr_out, 1);
+//	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);
+
+}
+static void rateToAccelZ(void)
+{
+	Vector3f curr_vel = inav.velocity;
+	float p;                                // used to capture pid values for logging
+
+	// check speed limits
+	// To-Do: check these speed limits here or in the pos->rate controller
+	pos_control._limit.vel_up = 0;
+	pos_control._limit.vel_down = 0;
+	if (pos_control.vel_target.z < pos_control.speed_down_cms)
+	{
+		pos_control.vel_target.z = pos_control.speed_down_cms;
+		pos_control._limit.vel_down = 1;
+	}
+	if (pos_control.vel_target.z > pos_control.speed_up_cms)
+	{
+		pos_control.vel_target.z = pos_control.speed_up_cms;
+		pos_control._limit.vel_up = 1;
+	}
+
+	// reset last velocity target to current target
+	if (pos_control._flags.reset_rate_to_accel_z)
+		pos_control.vel_last.z = pos_control.vel_target.z;
+
+
+	// feed forward desired acceleration calculation
+	if (pos_control.dt > 0.0f)
+	{
+	    	if (!pos_control._flags.freeze_ff_z)
+	    	{
+	    		pos_control.accel_feedforward.z = (pos_control.vel_target.z - pos_control.vel_last.z)/pos_control.dt;
+	        }
+	    	else
+	        {
+	    		// stop the feed forward being calculated during a known discontinuity
+	    		pos_control._flags.freeze_ff_z = 0;
+	    	}
+	}
+	else
+	{
+		pos_control.accel_feedforward.z = 0.0f;
+	}
+
+	// store this iteration's velocities for the next iteration
+	pos_control.vel_last.z = pos_control.vel_target.z;
+
+	// reset velocity error and filter if this controller has just been engaged
+	if (pos_control._flags.reset_rate_to_accel_z)
+	{
+		// Reset Filter
+		pos_control.vel_error.z = 0;
+		resetLPF(&pos_control.vel_error_filter, 0);
+		pos_control._flags.reset_rate_to_accel_z = 0;
+	}
+	else
+	{
+		// calculate rate error and filter with cut off frequency of 2 Hz
+	        pos_control.vel_error.z = applyLPF(&pos_control.vel_error_filter, pos_control.vel_target.z - curr_vel.z, pos_control.dt);
+	    }
+
+	    // calculate p
+	    p = pos_control._p_vel_z.kP * pos_control.vel_error.z;
+
+	    // consolidate and constrain target acceleration
+	    pos_control.accel_target.z = pos_control.accel_feedforward.z + p;
+
+	    // set target for accel based throttle controller
+	    accelToThrottle(pos_control.accel_target.z);
+
 }
 
-void setThrottleOut(float throttle_in, uint8_t apply_angle_boost)
+static void posToRateZ(void)
 {
-	//TODO convert input throttle to output PWM of the LLP
+	float curr_alt = inav.position.z;
+
+	// clear position limit flags
+	pos_control._limit.pos_up = 0;
+	pos_control._limit.pos_down = 0;
+
+	// calculate altitude error
+	pos_control.pos_error.z = pos_control.pos_target.z - curr_alt;
+
+	// do not let target altitude get too far from current altitude
+	if (pos_control.pos_error.z > pos_control.leash_up_z)
+	{
+		pos_control.pos_target.z = curr_alt + pos_control.leash_up_z;
+		pos_control.pos_error.z = pos_control.leash_up_z;
+		pos_control._limit.pos_up = 1;
+	}
+	if (pos_control.pos_error.z < -pos_control.leash_down_z)
+	{
+		pos_control.pos_target.z = curr_alt - pos_control.leash_down_z;
+		pos_control.pos_error.z = -pos_control.leash_down_z;
+		pos_control._limit.pos_down = 1;
+	}
+
+	// calculate pos_control.vel_target.z using from pos_control.pos_error.z using sqrt controller
+	pos_control.vel_target.z = sqrtController(pos_control.pos_error.z, pos_control._p_pos_z.kP, pos_control.accel_z_cms);
+
+	// add feed forward component
+	pos_control.vel_target.z += pos_control.vel_desired.z;
+
+	// call rate based throttle controller which will update accel based throttle controller targets
+	rateToAccelZ();
+
 }
 
-/// set_alt_target_from_climb_rate - adjusts target up or down using a climb rate in cm/s
-///     should be called continuously (with dt set to be the expected time between calls)
-///     actual position target will be moved no faster than the speed_down and speed_up
-///     target will also be stopped if the motors hit their limits or leash length is exceeded
 void setAltTargetfromClimbRate(float climb_rate_cms, float dt)
 {
     // jerk_z is calculated to reach full acceleration in 1000ms.
@@ -528,3 +564,13 @@ void updateZController()
     //TODO call position controller
     posToRateZ();
 }
+void setAttitude()
+{
+	//TODO use this data structure to give commmands to LLP ic_rc_or_data.ic_rc.rc1
+}
+
+void setThrottleOut(float throttle_in, uint8_t apply_angle_boost)
+{
+	//TODO convert input throttle to output PWM of the LLP
+}
+

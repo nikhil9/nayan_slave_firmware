@@ -11,7 +11,7 @@
 #define POSITION_CONTROLLER_H_
 
 // position controller default definitions
-#define POSCONTROL_THROTTLE_HOVER               500.0f  // default throttle required to maintain hover
+#define POSCONTROL_THROTTLE_HOVER               500.0f  // default throttle required to maintain hover TODO(checkout 2048??)
 #define POSCONTROL_ACCELERATION_MIN             50.0f   // minimum horizontal acceleration in cm/s/s - used for sanity checking acceleration in leash length calculation
 #define POSCONTROL_ACCEL_XY                     100.0f  // default horizontal acceleration in cm/s/s.  This is overwritten by waypoint and loiter controllers
 #define POSCONTROL_ACCEL_XY_MAX                 980.0f  // max horizontal acceleration in cm/s/s that the position velocity controller will ask from the lower accel controller
@@ -30,6 +30,7 @@
 
 #define POSCONTROL_DT_10HZ                      0.10f   // time difference in seconds for 10hz update rate
 #define POSCONTROL_DT_50HZ                      0.02f   // time difference in seconds for 50hz update rate
+#define POSCONTROL_DT_100HZ                     0.01f   // time difference in seconds for 50hz update rate
 
 #define POSCONTROL_ACTIVE_TIMEOUT_MS            200     // position controller is considered active if it has been called within the past 0.2 seconds
 
@@ -38,12 +39,13 @@
 #define POSCONTROL_JERK_LIMIT_CMSSS             1700.0f // jerk limit on horizontal acceleration (unit: m/s/s/s)
 #define POSCONTROL_ACCEL_FILTER_HZ              2.0f    // low-pass filter on acceleration (unit: hz)
 #define POSCONTROL_JERK_RATIO                   1.0f    // Defines the time it takes to reach the requested acceleration
-#define XY_MODE_POS_ONLY 						0       // position correction only (i.e. no velocity feed-forward)
-#define XY_MODE_POS_LIMITED_AND_VEL_FF			1	    // for loiter - rate-limiting the position correction, velocity feed-forward
-#define XY_MODE_POS_AND_VEL_FF					2		// for velocity controller - unlimied position correction, velocity feed-forward
 
 ///////////Constants defined by atulya ///////////
 #define MAX_LEAN_ANGLE							1500	//in centidegrees
+#define POSCONTROL_MAX_ALTITUDE					4		//pxflow ultrasonic is said to work only upto 4m
+#define XY_MODE_POS_ONLY 						0       // position correction only (i.e. no velocity feed-forward)
+#define XY_MODE_POS_LIMITED_AND_VEL_FF			1	    // for loiter - rate-limiting the position correction, velocity feed-forward
+#define XY_MODE_POS_AND_VEL_FF					2		// for velocity controller - unlimied position correction, velocity feed-forward
 /**
  * @brief defines the struct for handling the position controller
  */
@@ -120,6 +122,7 @@ typedef struct
 
 }Position_Controller;
 
+void initializePosController(void);
 
 void setAttitude(void);
 

@@ -82,10 +82,10 @@ void resetLPF(LowPassFilter *lpf, float val)
 }
 
 // initalizes P, I, filt_hz, Imax
-void initializePI(Controller_PI_2D *pi)
+void initializePI(Controller_PI_2D *pi, float kP, float kI)
 {
-	pi->kP = 0;
-	pi->kI = 0;
+	pi->kP = kP;
+	pi->kI = kI;
 	pi->Imax = 0;
 	pi->filt_hz = AC_PI_2D_FILT_HZ_DEFAULT;
 
@@ -185,11 +185,11 @@ Vector2f getPI_I_shrink(Controller_PI_2D *pi)
     return I;
 }
 
-void intializePID(Controller_PID *pid)
+void intializePID(Controller_PID *pid, float kP, float kI, float kD)
 {
-	pid->kP = 0;
-	pid->kI = 0;
-	pid->kD = 0;
+	pid->kP = kP;
+	pid->kI = kI;
+	pid->kD = kD;
 	pid->Imax = 0;
 	pid->filt_hz = AC_PID_FILT_HZ_DEFAULT;
 
