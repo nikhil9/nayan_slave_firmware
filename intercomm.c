@@ -103,6 +103,12 @@ void update_ic_data(void){
 
 	correctIMUTemp();
 
+	if(_position_gps.z != sens_gps.alt)
+	{
+		sens_ext_pos.stamp = stamp;
+		sens_ext_pos.position.z = sens_gps.alt;
+	}
+
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{
 		sens_gps.stamp = stamp;

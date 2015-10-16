@@ -10,11 +10,52 @@
 #ifndef WP_NAV_H_
 #define WP_NAV_H_
 
-#define STICK_TO_DEGREEPSS			1.0
-#define MID_STICK					2048
-#define THROTTLE_DEADZONE			300
+///--------------CONSTANTS by Atulya-----------
+
+#define STICK_TO_CENTIDEGREEPS			1.0
+#define MID_STICK					1500
+#define THROTTLE_DEADZONE			150
 #define THROTTLE_MIN				1000
-#define THROTTLE_MAX				4000
+#define THROTTLE_MAX				2000
+#define STICK_MIN					1000
+#define STICK_MID					1500
+#define STICK_MAX					2000
+#define DEGREE_TO_STICK				500.0f/35.0f
+#define STICK_DEADBAND				15
+#define PILOT_INPUT_DT_50HZ			0.02f
+
+//---------------------------------------------
+
+// loiter maximum velocities and accelerations
+#define WPNAV_ACCELERATION              100.0f      // defines the default velocity vs distant curve.  maximum acceleration in cm/s/s that position controller asks for from acceleration controller
+#define WPNAV_ACCELERATION_MIN           50.0f      // minimum acceleration in cm/s/s - used for sanity checking _wp_accel parameter
+
+#define WPNAV_LOITER_SPEED              200.0f      // default loiter speed in cm/s	IGNORE changed by atulya
+#define WPNAV_LOITER_SPEED_MIN          100.0f      // minimum loiter speed in cm/s
+#define WPNAV_LOITER_ACCEL              150.0f      // default acceleration in loiter mode IGNORE changed by atulya
+#define WPNAV_LOITER_ACCEL_MIN           25.0f      // minimum acceleration in loiter mode
+#define WPNAV_LOITER_JERK_MAX_DEFAULT  500.0f      // maximum jerk in cm/s/s/s in loiter mode	IGNORE changed by atulya
+
+#define WPNAV_WP_SPEED                  200.0f      // default horizontal speed betwen waypoints in cm/s
+#define WPNAV_WP_SPEED_MIN              100.0f      // minimum horizontal speed between waypoints in cm/s
+#define WPNAV_WP_TRACK_SPEED_MIN         50.0f      // minimum speed along track of the target point the vehicle is chasing in cm/s (used as target slows down before reaching destination)
+#define WPNAV_WP_RADIUS                 200.0f      // default waypoint radius in cm
+
+#define WPNAV_WP_SPEED_UP               250.0f      // default maximum climb velocity IGNORE changed by atulya
+#define WPNAV_WP_SPEED_DOWN             150.0f      // default maximum descent velocity
+
+#define WPNAV_WP_ACCEL_Z_DEFAULT        100.0f      // default vertical acceleration betwen waypoints in cm/s/s
+
+#define WPNAV_LEASH_LENGTH_MIN          100.0f      // minimum leash lengths in cm
+
+#define WPNAV_WP_FAST_OVERSHOOT_MAX     200.0f      // 2m overshoot is allowed during fast waypoints to allow for smooth transitions to next waypoint
+
+#define WPNAV_LOITER_UPDATE_TIME        0.020f      // 50hz update rate for loiter
+
+#define WPNAV_LOITER_ACTIVE_TIMEOUT_MS     200      // loiter controller is considered active if it has been called within the past 200ms (0.2 seconds)
+
+#define WPNAV_YAW_DIST_MIN                 200      // minimum track length which will lead to target yaw being updated to point at next waypoint.  Under this distance the yaw target will be frozen at the current heading
+
 
 typedef struct ap_waypoint_nav
 {
@@ -73,6 +114,8 @@ typedef struct ap_waypoint_nav
 }WP_Nav;
 
 void updateLoiter(void);
+
+void initializeWPNav(void);
 
 void loiter_run(void);					//TODO
 

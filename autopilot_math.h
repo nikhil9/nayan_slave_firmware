@@ -131,6 +131,8 @@ static inline float constrain_float(float amt, float low, float high)
 	return ((amt)<(low)?(low):((amt)>(high)?(high):(amt)));
 }
 
+void initializeVector3fToZero(Vector3f* inp);
+
 /**
  * @brief pops the first element of the queue and returns it
  * @param arr the array storing all the elements of the queue
@@ -168,7 +170,7 @@ float applyLPF(LowPassFilter *lpf, float input, float dt);
 
 /////////////------------PI-----------////////////
 
-void intializePI(Controller_PI_2D *pi, float kP, float kI);
+void initializePI(Controller_PI_2D *pi, float kP, float kI, float imax, float filt_hz);
 void setPIInput(Controller_PI_2D *pi, Vector2f input, float dt);
 void resetPI_I(Controller_PI_2D *pi);
 Vector2f getPI_P(Controller_PI_2D *pi);
@@ -177,7 +179,7 @@ Vector2f getPI_I_shrink(Controller_PI_2D *pi);
 
 ////////////////////////PID///////////////////////
 
-void intializePID(Controller_PID *pid, float kP, float kI, float kD);
+void initializePID(Controller_PID *pid, float kP, float kI, float kD, float imax, float filt_hz);
 void setPIDInput_FilterAll(Controller_PID *pid, float input);
 void setPIDInput_FilterD(Controller_PID *pid, float input);
 void resetPID_I(Controller_PID *pid);

@@ -125,22 +125,22 @@ static void send_sim_state(void)
 {
 	mavlink_msg_sim_state_send(
 			MAVLINK_COMM_0,
-			q[0],
-			q[1],
-			q[2],
-			q[3],
-			x_cm,
-			y_cm,
-			sens_ext_pos.yaw,
+			pos_control.vel_desired.x,
+			pos_control.pos_target.x,
+			pos_control.vel_target.x,
+			pos_control.accel_target.x,
+			pos_control.roll_target,
+			pos_control.pitch_target,
+			pos_control.throttle_out,
 			ahrs.accel_ef.x,
 			ahrs.accel_ef.y,
 			ahrs.accel_ef.z,
 			velocity.x,
 			velocity.y,
 			velocity.z,
-			sens_ext_pos.position.x,
-			sens_ext_pos.position.y,
-			sens_ext_pos.position.z,
+			inav.position.x,
+			inav.position.y,
+			inav.position.z,
 			0,
 			0,
 			inav.velocity.x,
@@ -167,6 +167,8 @@ static msg_t mavlinkSend(void *arg) {
 
   uint16_t vis_cnt = 2;
 
+  uint16_t imu_cnt = 3;
+
   while (TRUE) {
 
 	  if(hbt_cnt > 200){
@@ -174,11 +176,12 @@ static msg_t mavlinkSend(void *arg) {
 		  hbt_cnt = 0;
 	  }
 
+	  if(imu_cnt > 4)
 	  send_scaled_imu();
 
 	  send_attitude();
 
-	  if(vis_cnt > 40)
+	  if(vis_cnt > 4)
 	  {
 		  send_sim_state();
 		  vis_cnt = 0;
@@ -199,6 +202,7 @@ static msg_t mavlinkSend(void *arg) {
 	  gps_cnt++;
 	  rc_cnt++;
 	  vis_cnt++;
+	  imu_cnt++;
 
   }
   return 0;
@@ -315,13 +319,14 @@ void handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
-    	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
-    	sens_ext_pos.position.x = vision_position_inp.x;
-    	sens_ext_pos.position.y = vision_position_inp.y;
-    	sens_ext_pos.position.z = vision_position_inp.z;
-    	sens_ext_pos.yaw = vision_position_inp.yaw;
-    	sens_ext_pos.obc_stamp = vision_position_inp.usec;
-    	sens_ext_pos.stamp = millis();
+    	//TODO replace this when switching back from GPS and baro based feedback to CV and PX4flow
+//    	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
+//    	sens_ext_pos.position.x = vision_position_inp.x;
+//    	sens_ext_pos.position.y = vision_position_inp.y;
+//    	sens_ext_pos.position.z = vision_position_inp.z;
+//    	sens_ext_pos.yaw = vision_position_inp.yaw;
+//    	sens_ext_pos.obc_stamp = vision_position_inp.usec;
+//    	sens_ext_pos.stamp = millis();
 
     	break;
     }

@@ -13,6 +13,7 @@
  */
 
 #include "main.h"
+#include "config.h"
 
 #ifndef INERTIAL_NAV_H_
 #define INERTIAL_NAV_H_
@@ -34,6 +35,7 @@
 
 #define AP_HISTORIC_Z_SIZE							15		// assuming a 150 ms delay for the ultrasonic data if the AHRS is called at 100Hz
 #define GPS_RADIUS_CM								400
+#define EXT_POS_RADIUS_CM							100
 
 /**
  * @brief implements basic variables required for inertial navigation
@@ -101,6 +103,8 @@ void updateAHRS(void);
  * @brief automatically initialize the home position depending on the current position
  */
 void initializeHome(void);
+
+void initializeAlt(void);
 
 /**
  * @brief sets the position variables to home

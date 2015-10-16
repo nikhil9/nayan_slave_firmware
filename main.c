@@ -78,7 +78,7 @@ int main(void){
 /**
  * USER CODE GOES HERE
  */
-//		uint32_t start = millis();
+		uint32_t start = micros();
 		if(sens_imu.stamp > last_imu_stamp)
 		{
 			updateAHRS();
@@ -88,22 +88,22 @@ int main(void){
 
 		loiter_run();
 
+//		debug("absolute values is : %d", abs(-15));
+
 		if(sens_ext_pos.stamp > last_ext_pos_stamp)
 		{
-
-			last_ext_pos_stamp = sens_ext_pos.stamp;
 			debug("Yaw from vision is : %f and data is updated at %dms", sens_ext_pos.yaw, sens_ext_pos.stamp - last_ext_pos_stamp);
+			last_ext_pos_stamp = sens_ext_pos.stamp;
 		}
 
 		//debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
-//		uint32_t end = millis();
-
-//		debug("position base %f; position correction is %f; position_error is %f",
-//				inav.position_base.x, inav.position_correction.x, inav.position_error.x);
+		uint32_t end = micros();
 
 //		debug("lat home is: %d; lng_home is: %d", ahrs.lat_home, ahrs.lng_home);
+		int32_t duration = (end - start);				// time for which this thread should sleep
+//		debug("Duration of the code execution is %d us", duration);
 
-		delay(10);
+		delay(2);
 	}
 	return 0;
 }

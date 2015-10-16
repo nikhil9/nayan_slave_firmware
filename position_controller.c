@@ -9,11 +9,11 @@
 void initializePosController()
 {
 	//TODO initialize these constants
-	pos_control._p_pos_z.kP = 0;
-	pos_control._p_vel_z.kP = 0;
-	intializePID(&pos_control._pid_accel_z, 0, 0, 0);
-	pos_control._p_pos_xy.kP = 0;
-	initializePI(&pos_control._pi_vel_xy, 0, 0);
+	pos_control._p_pos_z.kP = ALT_HOLD_P;
+	pos_control._p_vel_z.kP = VEL_Z_P;
+	initializePID(&pos_control._pid_accel_z, ACCEL_Z_P, ACCEL_Z_I, ACCEL_Z_D, ACCEL_Z_IMAX, ACCEL_Z_FILT_HZ);
+	pos_control._p_pos_xy.kP = POS_XY_P;
+	initializePI(&pos_control._pi_vel_xy, VEL_XY_P, VEL_XY_I, VEL_XY_IMAX, VEL_XY_FILT_HZ);
 
 	pos_control.dt = POSCONTROL_DT_100HZ;
 	pos_control.dt_xy = POSCONTROL_DT_100HZ;
@@ -31,8 +31,21 @@ void initializePosController()
 	pos_control.leash_up_z = POSCONTROL_LEASH_LENGTH_MIN;
 	pos_control.roll_target = 0.0f;
 	pos_control.pitch_target = 0.0f;
+
+	initializeVector3fToZero(&pos_control.pos_target);
+	initializeVector3fToZero(&pos_control.pos_error);
+	initializeVector3fToZero(&pos_control.vel_desired);
+	initializeVector3fToZero(&pos_control.vel_target);
+	initializeVector3fToZero(&pos_control.vel_error);
+	initializeVector3fToZero(&pos_control.vel_last);
+	initializeVector3fToZero(&pos_control.accel_target);
+	initializeVector3fToZero(&pos_control.accel_error);
+	initializeVector3fToZero(&pos_control.accel_feedforward);
+
 	pos_control.alt_max = POSCONTROL_MAX_ALTITUDE;
+	pos_control.alt_min = POSCONTROL_MIN_ALTITUDE;
 	pos_control.distance_to_target = 0.0f;
+	pos_control.vel_error_filter.cutoff_freq = POSCONTROL_VEL_ERROR_CUTOFF_FREQ;
 	pos_control.accel_target_jerk_limited.x = 0.0f;
 	pos_control.accel_target_jerk_limited.y = 0.0f;
 	pos_control.accel_target_filter_x.cutoff_freq = POSCONTROL_ACCEL_FILTER_HZ;
@@ -401,10 +414,8 @@ static void accelToThrottle(float accel_target_z)
 	// get d term
 	d = getPID_D(&pos_control._pid_accel_z);
 
-	float thr_out = p+i+d+pos_control.throttle_hover;
+	pos_control.throttle_out = p+i+d+pos_control.throttle_hover;
 
-	// send throttle to attitude controller with angle boost
-	setThrottleOut(thr_out, 1);
 //	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);
 
 }
@@ -465,7 +476,9 @@ static void rateToAccelZ(void)
 	else
 	{
 		// calculate rate error and filter with cut off frequency of 2 Hz
-	        pos_control.vel_error.z = applyLPF(&pos_control.vel_error_filter, pos_control.vel_target.z - curr_vel.z, pos_control.dt);
+		pos_control.vel_error.z = applyLPF(&pos_control.vel_error_filter, pos_control.vel_target.z - curr_vel.z, pos_control.dt);
+//		debug("applying lpf with freq%f: old val:%f; new_val%f, with dt:%f GIVES %f",pos_control.vel_error_filter.cutoff_freq,
+//				pos_control.vel_error_filter.output, pos_control.vel_target.z - curr_vel.z, pos_control.dt, pos_control.vel_error.z);
 	    }
 
 	    // calculate p
@@ -532,15 +545,25 @@ void setAltTargetfromClimbRate(float climb_rate_cms, float dt)
     // To-Do: add check of _limit.pos_down?
     //IGNORE this check for now
 //    if ((pos_control.vel_desired.z<0 && (!_motors.limit.throttle_lower || force_descend)) || (_vel_desired.z>0 && !_motors.limit.throttle_upper && !_limit.pos_up))
-        pos_control.pos_target.z += pos_control.vel_desired.z * dt;
+	pos_control.pos_target.z += pos_control.vel_desired.z * dt;
 
     // do not let target alt get above limit
     if (pos_control.alt_max > 0 && pos_control.pos_target.z > pos_control.alt_max) {
         pos_control.pos_target.z = pos_control.alt_max;
         pos_control._limit.pos_up = 1;
         // decelerate feed forward to zero
-        pos_control.vel_desired.z = constrain_float(0.0f, pos_control.vel_desired.z-vel_change_limit, pos_control.vel_desired.z+vel_change_limit);
+        if(pos_control.vel_desired.z > 0)
+        	pos_control.vel_desired.z = constrain_float(0.0f, pos_control.vel_desired.z-vel_change_limit, pos_control.vel_desired.z+vel_change_limit);
+
     }
+    if (pos_control.pos_target.z < pos_control.alt_min) {
+		pos_control.pos_target.z = pos_control.alt_min;
+		pos_control._limit.pos_down = 1;
+		// decelerate feed forward to zero
+		if(pos_control.vel_desired.z < 0)
+			pos_control.vel_desired.z = constrain_float(0.0f, pos_control.vel_desired.z-vel_change_limit, pos_control.vel_desired.z+vel_change_limit);
+	}
+    //TODO this velocity update will fail if quad has gone out of the alt max and min limits and the sensor saturates
 }
 void updateZController()
 {
@@ -566,11 +589,19 @@ void updateZController()
 }
 void setAttitude()
 {
+	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
+	ic_rc_or_data.ic_rc.rc2 = rc_in[1];
+	ic_rc_or_data.ic_rc.rc4 = rc_in[3];
+//	ic_rc_or_data.ic_rc.rc1 = STICK_MIN + DEGREE_TO_STICK*pos_control.roll_target;
+//	ic_rc_or_data.ic_rc.rc2 = STICK_MIN + DEGREE_TO_STICK*pos_control.pitch_target;
 	//TODO use this data structure to give commmands to LLP ic_rc_or_data.ic_rc.rc1
 }
 
 void setThrottleOut(float throttle_in, uint8_t apply_angle_boost)
 {
 	//TODO convert input throttle to output PWM of the LLP
+	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
+	debug("Sending throttle : %d", ic_rc_or_data.ic_rc.rc3);
+//	ic_rc_or_data.ic_rc.rc3 = throttle_in;
 }
 

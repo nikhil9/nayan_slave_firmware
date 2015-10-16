@@ -6,6 +6,13 @@
  */
 #include "main.h"
 
+void initializeVector3fToZero(Vector3f *vec)
+{
+	vec->x = 0;
+	vec->y = 0;
+	vec->z = 0;
+}
+
 void resetQueue(float arr[], Queue_property *q_property)
 {
 	arr[0] = 0;
@@ -82,12 +89,12 @@ void resetLPF(LowPassFilter *lpf, float val)
 }
 
 // initalizes P, I, filt_hz, Imax
-void initializePI(Controller_PI_2D *pi, float kP, float kI)
+void initializePI(Controller_PI_2D *pi, float kP, float kI, float imax, float filt_hz)
 {
 	pi->kP = kP;
 	pi->kI = kI;
-	pi->Imax = 0;
-	pi->filt_hz = AC_PI_2D_FILT_HZ_DEFAULT;
+	pi->Imax = imax;
+	pi->filt_hz = filt_hz;
 
 	pi->integrator.x = 0;
 	pi->integrator.y = 0;
@@ -185,13 +192,13 @@ Vector2f getPI_I_shrink(Controller_PI_2D *pi)
     return I;
 }
 
-void intializePID(Controller_PID *pid, float kP, float kI, float kD)
+void initializePID(Controller_PID *pid, float kP, float kI, float kD, float imax, float filt_hz)
 {
 	pid->kP = kP;
 	pid->kI = kI;
 	pid->kD = kD;
-	pid->Imax = 0;
-	pid->filt_hz = AC_PID_FILT_HZ_DEFAULT;
+	pid->Imax = imax;
+	pid->filt_hz = filt_hz;
 
 	pid->derivative = 0;
 	pid->dt = 0;

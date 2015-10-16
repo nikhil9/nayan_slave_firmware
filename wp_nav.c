@@ -9,9 +9,26 @@
 
 void initializeWPNav()
 {
+	wp_nav._wp_speed_cms = WPNAV_WP_SPEED;
+	wp_nav._wp_radius_cm = WPNAV_WP_RADIUS;
+	wp_nav._wp_speed_up_cms = WPNAV_WP_SPEED_UP;
+	wp_nav._wp_speed_down_cms = WPNAV_WP_SPEED_DOWN;
+	wp_nav._loiter_speed_cms = WPNAV_LOITER_SPEED;
+	wp_nav._wp_accel_cms = WPNAV_ACCELERATION;
+	wp_nav._wp_accel_z_cms = WPNAV_WP_ACCEL_Z_DEFAULT;
+	wp_nav._loiter_jerk_max_cmsss = WPNAV_LOITER_JERK_MAX_DEFAULT;
+	wp_nav._loiter_accel_cmss = WPNAV_LOITER_ACCEL;
+	wp_nav._loiter_accel_min_cmss = WPNAV_LOITER_ACCEL_MIN;
+
 	wp_nav._loiter_step = 0;
 	wp_nav._pilot_accel_fwd_cms = 0;
 	wp_nav._pilot_accel_rgt_cms = 0;
+	wp_nav._pilot_desired_yaw_rate = 0;
+	wp_nav._pilot_desired_climb_rate = 0;
+	wp_nav._pilot_max_z_velocity = WPNAV_WP_SPEED_DOWN;
+	wp_nav._dt_pilot_inp = PILOT_INPUT_DT_50HZ;
+	wp_nav._last_pilot_update_ms = 0;
+
 	wp_nav._wp_last_update = 0;
 	wp_nav._wp_step = 0;
 	wp_nav._track_length = 0;
@@ -37,7 +54,7 @@ void initializeWPNav()
 void loiter_run()
 {
 	uint32_t now = millis();
-	float dt = now - pos_control.last_update_z_ms;
+	float dt = now - wp_nav._last_pilot_update_ms;
 
 	// run at pilot_input update rate.
 	if (dt >= wp_nav._dt_pilot_inp)
@@ -51,11 +68,11 @@ void loiter_run()
 		getPilotClimbRate();
 	}
 	updateLoiter();
-
-	//TODO set the roll pitch yaw angles for the lower level controller
 	setAttitude();
 
 	updateAltHold();
+	// send throttle to attitude controller with angle boost
+	setThrottleOut(pos_control.throttle_out, 1);
 
 	//set target altitude based on the desired climb rate
 }
@@ -63,15 +80,19 @@ void loiter_run()
 void getPilotDesiredAcceleration()
 {
 	//TODO set the channel mapping properly
-	int16_t control_pitch = (rc_in[0] - 2048);
-	int16_t control_roll = (rc_in[1] - 2048);
-	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / 4500.0f;
-	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / 4500.0f;
+	int16_t control_pitch = (rc_in[1] - STICK_MID);
+	int16_t control_roll = (rc_in[0] - STICK_MID);
+	if(abs(control_pitch) < STICK_DEADBAND)
+		control_pitch = 0;
+	if(abs(control_roll) < STICK_DEADBAND)
+		control_roll = 0;
+	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
+	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 }
 
 void getPilotDesiredYawRate()
 {
-	wp_nav._pilot_desired_yaw_rate = (rc_in[2] - 2048)*STICK_TO_DEGREEPSS;
+	wp_nav._pilot_desired_yaw_rate = (rc_in[3] - STICK_MID)*STICK_TO_CENTIDEGREEPS;
 }
 
 void getPilotClimbRate()
@@ -83,7 +104,7 @@ void getPilotClimbRate()
 	float deadband_bottom = MID_STICK - THROTTLE_DEADZONE;
 
 	// ensure a reasonable throttle value
-	float throttle_control = constrain_float(rc_in[3],THROTTLE_MIN,THROTTLE_MAX);
+	float throttle_control = constrain_float(rc_in[2],THROTTLE_MIN,THROTTLE_MAX);
 
 
 	// check throttle is above, below or in the deadband
@@ -123,7 +144,7 @@ static void calcLoiterDesiredVelocity(float nav_dt)
 	// calculate the difference
 	Vector2f des_accel_diff;
 	des_accel_diff.x = (desired_accel.x - wp_nav._loiter_desired_accel.x);
-	des_accel_diff.y = (desired_accel.x - wp_nav._loiter_desired_accel.y);
+	des_accel_diff.y = (desired_accel.y - wp_nav._loiter_desired_accel.y);
 
 	// constrain and scale the desired acceleration
 	float des_accel_change_total = pythagorous2(des_accel_diff.x, des_accel_diff.y);
@@ -138,6 +159,9 @@ static void calcLoiterDesiredVelocity(float nav_dt)
 	// adjust the desired acceleration
 	wp_nav._loiter_desired_accel.x += des_accel_diff.x;
 	wp_nav._loiter_desired_accel.y += des_accel_diff.y;
+
+//	debug("calcLoiterDesVel: dt: %f; exp dt :%f; accelX: %f; accelY: %f", nav_dt, pos_control.dt_xy, wp_nav._loiter_desired_accel.x,
+//			wp_nav._loiter_desired_accel.y);
 
 	// get pos_control's feed forward velocity
 	Vector3f desired_vel = pos_control.vel_desired;
@@ -182,7 +206,7 @@ static void calcLoiterDesiredVelocity(float nav_dt)
 void updateLoiter()
 {
 	// calculate dt
-	float dt = millis() - pos_control.last_update_xy_ms;
+	float dt = (millis() - pos_control.last_update_xy_ms)*0.001f;
 
 	// run at poscontrol update rate.
 	// TODO: (something present on original code)run on user input to reduce latency, maybe if (user_input || dt >= _pos_control.get_dt_xy())
@@ -199,7 +223,7 @@ void updateLoiter()
 
 void updateAltHold()
 {
-	float dt = millis() - pos_control.last_update_z_ms;
+	float dt = (millis() - pos_control.last_update_z_ms)*0.001f;
 
 	// run at poscontrol update rate.
 	// TODO: (something present on original code)run on user input to reduce latency, maybe if (user_input || dt >= _pos_control.get_dt_xy())

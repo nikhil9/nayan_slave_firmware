@@ -89,7 +89,7 @@ void setPositionXY(float x, float y)
 	inav.position_correction.x = 0.0f;
 	inav.position_correction.y = 0.0f;
 
-	 // clear historic estimates
+	// clear historic estimates
 	resetQueue(inav.historic_x, &inav.historic_x_property);
 	resetQueue(inav.historic_y, &inav.historic_y_property);
 
@@ -201,7 +201,32 @@ static void checkGPS(void)
  */
 static int isExtPosGlitching(void)
 {
-	int all_ok = 1;
+	// calculate time since last sane gps reading in ms
+	float sane_dt = (sens_gps.stamp - inav.last_good_gps_update) / 1000.0f;
+
+	float distance_cm = sens_ext_pos.position.z - inav.last_good_ext_pos.z;
+	debug("distance to last_good_lat is %f", distance_cm);
+
+	int all_ok = 0;
+
+		// all ok if within a given hardcoded radius
+	if (fabs(distance_cm) <= EXT_POS_RADIUS_CM)
+	{
+		all_ok = 1;
+	}
+		//TODO complete the accel_based distance
+	//	else
+	//	{
+	//		// or if within the maximum distance we could have moved based on our acceleration
+	//		accel_based_distance = 0.5f * _accel_max_cmss * sane_dt * sane_dt;
+	//		all_ok = (distance_cm <= accel_based_distance);
+	//	}
+
+	if(all_ok == 1)
+	{
+		inav.last_good_ext_pos.z = sens_ext_pos.position.z;
+		inav.last_good_ext_pos_update = sens_ext_pos.stamp;
+	}
 	return (!all_ok);
 }
 
@@ -216,7 +241,7 @@ static void correctWithExtPos(float dt)
 
 //	x_cm = sens_ext_pos.position.x*100;
 //	y_cm = sens_ext_pos.position.y*100;
-	float z = sens_ext_pos.position.z*100;
+	float z = sens_ext_pos.position.z;
 
 //	debug("GPS lat is %d; GPS lng is %d;", sens_gps.lat, sens_gps.lng);
 //	debug("GPS x is %f; GPS y is %f; deltat is %f",x,y,dt);
@@ -236,8 +261,9 @@ static void correctWithExtPos(float dt)
 		// reset the inertial nav position and velocity to gps values
 		if(inav.flag_ext_pos_glitching == 1)
 		{
-			debug("Z ext_pos position base %f; position correction is %f; position_error is %f",
-							inav.position_base.z, inav.position_correction.z, inav.position_error.z);
+			debug("Z : ext_pos: %z pos base %f; pos_correction is %f; pos_error is %f",
+							z, inav.position_base.z, inav.position_correction.z, inav.position_error.z);
+
 //			setPositionXY(x_cm,y_cm);
 			setAltitude(z);
 			inav.position_error.z = 0;
@@ -302,8 +328,8 @@ static void checkExtPos(void)
 
 void initializeHome()
 {
-	//wait for some proper measurement from the GPS
-	bool flag_GPS_HOME_FOUND = 0;
+	//wait for some proper measurement from the GPS TODO change it back to 0
+	bool flag_GPS_HOME_FOUND = 1;
 	while(!flag_GPS_HOME_FOUND)
 	{
 		//wait till a location close to 50KM radius of IITK is found from GPS
@@ -349,6 +375,25 @@ void setupHomePosition()
 
 }
 
+void initializeAlt()
+{
+	bool flag_EXT_POS_HOME_FOUND = 0;
+	while(!flag_EXT_POS_HOME_FOUND)
+	{
+		if(sens_ext_pos.stamp != 0)
+			flag_EXT_POS_HOME_FOUND = 1;
+	}
+
+	inav.position_base.z = sens_ext_pos.position.z;
+	inav.last_good_ext_pos.z = sens_ext_pos.position.z;
+	inav.last_good_ext_pos_update = sens_ext_pos.stamp;
+	inav.position_correction.z = 0.0f;
+	inav.position.z = sens_ext_pos.position.z;
+
+	inav.position_error.z = 0.0f;
+	inav.velocity.z = 0.0f;
+}
+
 void initINAV()
 {
 	// initialize the queues
@@ -373,7 +418,7 @@ void initINAV()
 	initializeHome();
 	//TODO initialize other variables
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
-	//z components of position, position_correction, position_base, position_error and velocity remaining
+	initializeAlt();
 
 }
 
@@ -467,6 +512,9 @@ void updateINAV(uint32_t del_t)
 	inav.position.x = inav.position_base.x + inav.position_correction.x;
 	inav.position.y = inav.position_base.y + inav.position_correction.y;
 	inav.position.z = inav.position_base.z + inav.position_correction.z;
+
+//	debug("position base %f; position correction is %f; position_error is %f",
+//					inav.position_base.z, inav.position_correction.z, inav.position_error.z);
 
 	// calculate new velocity
 	inav.velocity.x += velocity_increase.x;
