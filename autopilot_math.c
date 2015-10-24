@@ -13,6 +13,12 @@ void initializeVector3fToZero(Vector3f *vec)
 	vec->z = 0;
 }
 
+void initializeVector2fToZero(Vector2f *vec)
+{
+	vec->x = 0;
+	vec->y = 0;
+}
+
 void resetQueue(float arr[], Queue_property *q_property)
 {
 	arr[0] = 0;

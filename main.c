@@ -71,6 +71,8 @@ int main(void){
 	//intialize the position_controller
 	initializePosController();
 
+	resetController();
+
 	//intialize the wp_nav
 	initializeWPNav();
 
@@ -81,14 +83,25 @@ int main(void){
 		uint32_t start = micros();
 		if(sens_imu.stamp > last_imu_stamp)
 		{
-			updateAHRS();
-			updateINAV(sens_imu.stamp - last_imu_stamp);
-			last_imu_stamp = sens_imu.stamp;
+			if(isIMUGlitching() == 0)
+			{
+				updateAHRS();
+				updateINAV(sens_imu.stamp - last_imu_stamp);
+				last_imu_stamp = sens_imu.stamp;
+			}
+			else
+			{
+				delay(2);
+				continue;
+			}
 		}
 
-		loiter_run();
-
-//		debug("absolute values is : %d", abs(-15));
+		//the loiter code is to be run only when the switch is pressed on for the HLP code transfer
+		float chnl6_out = applyLPF(&wp_nav.channel6_filter, rc_in[6], 0.002);
+		if(chnl6_out > (2000 + 917)/2)
+			loiter_run();
+		else
+			resetController();
 
 		if(sens_ext_pos.stamp > last_ext_pos_stamp)
 		{

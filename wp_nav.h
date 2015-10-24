@@ -12,36 +12,44 @@
 
 ///--------------CONSTANTS by Atulya-----------
 
-#define STICK_TO_CENTIDEGREEPS			1.0
-#define MID_STICK					1500
-#define THROTTLE_DEADZONE			150
-#define THROTTLE_MIN				1000
-#define THROTTLE_MAX				2000
-#define STICK_MIN					1000
-#define STICK_MID					1500
-#define STICK_MAX					2000
-#define DEGREE_TO_STICK				500.0f/35.0f
-#define STICK_DEADBAND				15
-#define PILOT_INPUT_DT_50HZ			0.02f
-
+#define MID_STICK_THROTTLE						1500
+#define THROTTLE_DEADZONE						150
+#define THROTTLE_MIN							1000
+#define THROTTLE_MAX							2000
+#define STICK_MIN								1000
+#define STICK_MID								1500
+#define STICK_MAX								2000
+#define DEGREE_TO_STICK							500.0f/35.0f	//TODO just a speculation check it
+#define STICK_DEADBAND							15
+#define THROTTLE_OUTPUT_MAX						1700
+#define THROTTLE_OUTPUT_MIN						1300
+#define RP_OUTPUT_MAX							1600
+#define RP_OUTPUT_MIN							1400
+#define YAW_OUTPUT_MAX							1800
+#define YAW_OUTPUT_MIN							1200
+#define DEGREEPS_TO_STICK						100		//TODO correct this on the basis of what is present in wp_nav
+#define STICK_TO_DEGREEPS						0.01f	//TODO just a speculation check it
+#define PILOT_INPUT_DT_50HZ						0.02f
+#define OMEGA									2.5
+#define TAU										1
 //---------------------------------------------
 
 // loiter maximum velocities and accelerations
 #define WPNAV_ACCELERATION              100.0f      // defines the default velocity vs distant curve.  maximum acceleration in cm/s/s that position controller asks for from acceleration controller
 #define WPNAV_ACCELERATION_MIN           50.0f      // minimum acceleration in cm/s/s - used for sanity checking _wp_accel parameter
 
-#define WPNAV_LOITER_SPEED              200.0f      // default loiter speed in cm/s	IGNORE changed by atulya
+#define WPNAV_LOITER_SPEED              500.0f      // default loiter speed in cm/s	IGNORE changed by atulya
 #define WPNAV_LOITER_SPEED_MIN          100.0f      // minimum loiter speed in cm/s
-#define WPNAV_LOITER_ACCEL              150.0f      // default acceleration in loiter mode IGNORE changed by atulya
+#define WPNAV_LOITER_ACCEL              250.0f      // default acceleration in loiter mode IGNORE changed by atulya
 #define WPNAV_LOITER_ACCEL_MIN           25.0f      // minimum acceleration in loiter mode
 #define WPNAV_LOITER_JERK_MAX_DEFAULT  500.0f      // maximum jerk in cm/s/s/s in loiter mode	IGNORE changed by atulya
 
-#define WPNAV_WP_SPEED                  200.0f      // default horizontal speed betwen waypoints in cm/s
+#define WPNAV_WP_SPEED                  500.0f      // default horizontal speed betwen waypoints in cm/s
 #define WPNAV_WP_SPEED_MIN              100.0f      // minimum horizontal speed between waypoints in cm/s
 #define WPNAV_WP_TRACK_SPEED_MIN         50.0f      // minimum speed along track of the target point the vehicle is chasing in cm/s (used as target slows down before reaching destination)
 #define WPNAV_WP_RADIUS                 200.0f      // default waypoint radius in cm
 
-#define WPNAV_WP_SPEED_UP               250.0f      // default maximum climb velocity IGNORE changed by atulya
+#define WPNAV_WP_SPEED_UP               200.0f      // default maximum climb velocity IGNORE changed by atulya
 #define WPNAV_WP_SPEED_DOWN             150.0f      // default maximum descent velocity
 
 #define WPNAV_WP_ACCEL_Z_DEFAULT        100.0f      // default vertical acceleration betwen waypoints in cm/s/s
@@ -82,9 +90,12 @@ typedef struct ap_waypoint_nav
     uint8_t     _loiter_step;           // used to decide which portion of loiter controller to run during this iteration
     int16_t     _pilot_accel_fwd_cms; 	// pilot's desired acceleration forward (body-frame)
     int16_t     _pilot_accel_rgt_cms;   // pilot's desired acceleration right (body-frame)
-    int16_t     _pilot_desired_yaw_rate;// pilot's desired yaw rate		IGNORE added by atulya
-    int16_t     _pilot_desired_climb_rate;// pilot's desired climb rate in cms	IGNORE added by atulya
-    int16_t		_pilot_max_z_velocity;	//max z velocity from the pilot	IGNORE added by atulya
+    float    	_pilot_desired_yaw_rate;// pilot's desired yaw rate		IGNORE added by atulya
+    float     	_pilot_desired_climb_rate;// pilot's desired climb rate in cms	IGNORE added by atulya
+    float		_pilot_max_z_velocity;	//max z velocity from the pilot	IGNORE added by atulya
+    float		_nav_accel_desired_x;	// required acceleration to maintain a desired point IGNORE added by atulya
+    float		_nav_accel_desired_y;	// required acceleration to maintain a desired point IGNORE added by atulya
+    Vector2f	waypoint;				// target waypoint for the system
     uint32_t	_last_pilot_update_ms;	//timestamp of the last update performed by the pilot inputs to the loiter code IGNORE
     float		_dt_pilot_inp;			//time duration in which to check the pilot input
     Vector2f    _loiter_desired_accel;  // slewed pilot's desired acceleration in lat/lon frame
@@ -111,6 +122,7 @@ typedef struct ap_waypoint_nav
     Vector3f    _hermite_spline_solution[4]; // array describing spline path between origin and destination
     float       _spline_vel_scaler;	    //
     float       _yaw;                   // heading according to yaw
+    LowPassFilter		channel6_filter;// IGNORE channel6 values as filtered by the user
 }WP_Nav;
 
 void updateLoiter(void);
@@ -122,6 +134,8 @@ void loiter_run(void);					//TODO
 void getPilotDesiredAcceleration(void);
 void getPilotDesiredYawRate(void);
 void getPilotClimbRate(void);
+
+void getNavDesiredAcceleration(void);
 
 void updateAltHold(void);
 

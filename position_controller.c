@@ -31,6 +31,7 @@ void initializePosController()
 	pos_control.leash_up_z = POSCONTROL_LEASH_LENGTH_MIN;
 	pos_control.roll_target = 0.0f;
 	pos_control.pitch_target = 0.0f;
+	pos_control.accel_xy_filt_hz = POSCONTROL_ACCEL_FILTER_HZ;
 
 	initializeVector3fToZero(&pos_control.pos_target);
 	initializeVector3fToZero(&pos_control.pos_error);
@@ -41,6 +42,16 @@ void initializePosController()
 	initializeVector3fToZero(&pos_control.accel_target);
 	initializeVector3fToZero(&pos_control.accel_error);
 	initializeVector3fToZero(&pos_control.accel_feedforward);
+
+	pos_control.throttle_out = pos_control.throttle_hover;
+	pos_control.pitch_out = STICK_MID;
+	pos_control.roll_out = STICK_MID;
+	pos_control.yaw_rate_out = STICK_MID;
+
+	ic_rc_or_data.ic_rc.rc1 = pos_control.roll_out;
+	ic_rc_or_data.ic_rc.rc2 = pos_control.pitch_out;
+	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;
+	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
 
 	pos_control.alt_max = POSCONTROL_MAX_ALTITUDE;
 	pos_control.alt_min = POSCONTROL_MIN_ALTITUDE;
@@ -67,6 +78,22 @@ void initializePosController()
 	pos_control._limit.vel_down = 1;
 	pos_control._limit.accel_xy = 1;
 
+}
+
+void resetController()
+{
+	resetPI_I(&pos_control._pi_vel_xy);
+	resetPID_I(&pos_control._pid_accel_z);
+
+	pos_control.pos_target.z = inav.position.z;
+	pos_control.vel_desired.z = 0;
+
+	wp_nav._loiter_desired_accel.x = 0;
+	wp_nav._loiter_desired_accel.y = 0;
+	pos_control.vel_desired.x = 0;
+	pos_control.vel_desired.y = 0;
+	pos_control.pos_target.x = inav.position.x;
+	pos_control.pos_target.y = inav.position.y;
 }
 
 /// calc_leash_length - calculates the horizontal leash length given a maximum speed, acceleration and position kP gain
@@ -275,12 +302,14 @@ static void accelToLeanAngles(float dt, int use_althold_lean_angle)
     float accel_total;                          // total acceleration in cm/s/s
     float accel_right, accel_forward;
     float lean_angle_max = MAX_LEAN_ANGLE;
-    float accel_max = POSCONTROL_ACCEL_XY_MAX;
+    float accel_max = POSCONTROL_ACCEL_XY;
 
     // limit acceleration if necessary
     if (use_althold_lean_angle) {
-        accel_max = min(accel_max, GRAVITY_MSS * 100.0f * sinf(DEG_TO_RAD*constrain_float(MAX_LEAN_ANGLE,1000,8000)/100.0f));
+        accel_max = min(accel_max, GRAVITY_MSS * 100.0f * sinf(DEG_TO_RAD*constrain_float(MAX_LEAN_ANGLE,10,45)));
     }
+
+    debug("accel_max is %f", accel_max);
 
     // scale desired acceleration if it's beyond acceptable limit
     accel_total = pythagorous2(pos_control.accel_target.x, pos_control.accel_target.y);
@@ -335,9 +364,9 @@ static void accelToLeanAngles(float dt, int use_althold_lean_angle)
     accel_right = -accel_target_filtered.x*ahrs.sin_psi + accel_target_filtered.y*ahrs.cos_psi;
 
     // update angle targets that will be passed to stabilize controller
-    pos_control.pitch_target = constrain_float(atan(-accel_forward/(GRAVITY_MSS * 100))*(18000/M_PI_F),-lean_angle_max, lean_angle_max);
-    float cos_pitch_target = cosf(pos_control.pitch_target*M_PI_F/18000);
-    pos_control.roll_target = constrain_float(atan(accel_right*cos_pitch_target/(GRAVITY_MSS * 100))*(18000/M_PI_F), -lean_angle_max, lean_angle_max);
+    pos_control.pitch_target = constrain_float(atan(-accel_forward/(GRAVITY_MSS * 100))*(RAD_TO_DEG),-lean_angle_max, lean_angle_max);
+    float cos_pitch_target = cosf(pos_control.pitch_target*DEG_TO_RAD);
+    pos_control.roll_target = constrain_float(atan(accel_right*cos_pitch_target/(GRAVITY_MSS * 100))*(RAD_TO_DEG), -lean_angle_max, lean_angle_max);
 }
 
 
@@ -414,7 +443,7 @@ static void accelToThrottle(float accel_target_z)
 	// get d term
 	d = getPID_D(&pos_control._pid_accel_z);
 
-	pos_control.throttle_out = p+i+d+pos_control.throttle_hover;
+	pos_control.throttle_in = p+i+d+pos_control.throttle_hover;
 
 //	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);
 
@@ -587,21 +616,32 @@ void updateZController()
     //TODO call position controller
     posToRateZ();
 }
-void setAttitude()
+void setAttitude(float roll, float pitch, float yaw_rate)
 {
-	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
-	ic_rc_or_data.ic_rc.rc2 = rc_in[1];
-	ic_rc_or_data.ic_rc.rc4 = rc_in[3];
-//	ic_rc_or_data.ic_rc.rc1 = STICK_MIN + DEGREE_TO_STICK*pos_control.roll_target;
-//	ic_rc_or_data.ic_rc.rc2 = STICK_MIN + DEGREE_TO_STICK*pos_control.pitch_target;
+	int16_t roll_out = STICK_MID + DEGREE_TO_STICK*roll;
+	int16_t pitch_out = STICK_MID + DEGREE_TO_STICK*pitch;
+	int16_t yaw_rate_out = STICK_MID + DEGREEPS_TO_STICK*yaw_rate;
+
+	pos_control.roll_out = constrain_int(roll_out, RP_OUTPUT_MIN, RP_OUTPUT_MAX);
+	pos_control.pitch_out = constrain_int(pitch_out, RP_OUTPUT_MIN, RP_OUTPUT_MAX);
+	pos_control.yaw_rate_out = constrain_int(yaw_rate_out, YAW_OUTPUT_MIN, YAW_OUTPUT_MAX);
+
+	ic_rc_or_data.ic_rc.rc1 = pos_control.roll_out;
+	ic_rc_or_data.ic_rc.rc2 = pos_control.pitch_out;
+	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
+//	ic_rc_or_data.ic_rc.rc1 = ;
 	//TODO use this data structure to give commmands to LLP ic_rc_or_data.ic_rc.rc1
 }
 
-void setThrottleOut(float throttle_in, uint8_t apply_angle_boost)
+void setThrottleOut(float throttle_out, uint8_t apply_angle_boost)
 {
 	//TODO convert input throttle to output PWM of the LLP
-	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
-	debug("Sending throttle : %d", ic_rc_or_data.ic_rc.rc3);
-//	ic_rc_or_data.ic_rc.rc3 = throttle_in;
-}
+//	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
 
+//	if(apply_angle_boost == 1)
+//		throttle_out = throttle_out/(ahrs.cos_theta*ahrs.cos_phi);
+
+	pos_control.throttle_out = constrain_int(throttle_out, THROTTLE_OUTPUT_MIN, THROTTLE_OUTPUT_MAX);
+	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;
+//	debug("sending out throttle %d", pos_control.throttle_out);
+}

@@ -24,7 +24,7 @@
 
 #define INERTIAL_NAV_DELTAT_MAX 		0.1
 #define AP_INTERTIALNAV_TC_XY   		2.5f // default time constant for complementary filter's X & Y axis
-#define AP_INTERTIALNAV_TC_Z    		5.0f // default time constant for complementary filter's Z axis
+#define AP_INTERTIALNAV_TC_Z    		2.5f // default time constant for complementary filter's Z axis
 
 // #defines to control how often historical accel based positions are saved
 // so they can later be compared to laggy gps readings
@@ -35,7 +35,7 @@
 
 #define AP_HISTORIC_Z_SIZE							15		// assuming a 150 ms delay for the ultrasonic data if the AHRS is called at 100Hz
 #define GPS_RADIUS_CM								400
-#define EXT_POS_RADIUS_CM							100
+#define EXT_POS_RADIUS_CM							250
 
 /**
  * @brief implements basic variables required for inertial navigation
@@ -65,6 +65,8 @@ typedef struct
 	uint8_t flag_ext_pos_glitching;
 	Vector3f last_good_ext_pos;
 	uint32_t last_good_ext_pos_update;
+
+	uint32_t last_good_imu_update;
 
 	float time_constant_xy;			/**< PARAM time constant for the gain parameters #time_constant_xy.*/
 	float time_constant_z;			/**< PARAM time constant for the gain parameters #time_constant_z.*/
@@ -120,5 +122,7 @@ void updateGains(void);
  * @brief sets the desired postion in the inertial navigation system units in cm
  */
 void setPositionXY(float x, float y);
+
+int isIMUGlitching(void);
 
 #endif /* INERTIAL_NAV_H_ */

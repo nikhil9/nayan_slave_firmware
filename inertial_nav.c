@@ -19,8 +19,25 @@ static void printQueue(float arr[], Queue_property q_property)
 	debug("\n");
 }
 
+int isIMUGlitching(void)
+{
+	int all_ok = 0;
+
+	//assuming that a sane accelerometer is at least 1mss
+	if(normVec3f(sens_imu.accel_calib) > 1)
+		all_ok = 1;
+
+	if(all_ok == 1 )
+		inav.last_good_imu_update = sens_imu.stamp;
+
+	return (!all_ok);
+}
+
 void updateAHRS(void)
 {
+	if(isIMUGlitching())
+		return ;
+
 	ahrs.cos_phi = cosf(ahrs.attitude.x);
 	ahrs.sin_phi = sinf(ahrs.attitude.x);
 	ahrs.cos_theta = cosf(ahrs.attitude.y);
@@ -47,6 +64,7 @@ void updateAHRS(void)
  * @brief returns whether the GPS is having any glitch
  * TODO
  */
+
 static int isGPSGlitching(void)
 {
 // calculate time since last sane gps reading in ms
@@ -207,14 +225,20 @@ static int isExtPosGlitching(void)
 	float distance_cm = sens_ext_pos.position.z - inav.last_good_ext_pos.z;
 	debug("distance to last_good_lat is %f", distance_cm);
 
-	int all_ok = 0;
+	int all_ok = 1;
 
 		// all ok if within a given hardcoded radius
-	if (fabs(distance_cm) <= EXT_POS_RADIUS_CM)
+	if (fabs(distance_cm) > EXT_POS_RADIUS_CM)
 	{
-		all_ok = 1;
+		all_ok = 0;
 	}
-		//TODO complete the accel_based distance
+
+	if(sens_ext_pos.position.z == 0)
+	{
+		all_ok = 0;
+	}
+
+		//TODO UNNECESSARY complete the accel_based distance
 	//	else
 	//	{
 	//		// or if within the maximum distance we could have moved based on our acceleration
@@ -328,8 +352,7 @@ static void checkExtPos(void)
 
 void initializeHome()
 {
-	//wait for some proper measurement from the GPS TODO change it back to 0
-	bool flag_GPS_HOME_FOUND = 1;
+	bool flag_GPS_HOME_FOUND = 0;
 	while(!flag_GPS_HOME_FOUND)
 	{
 		//wait till a location close to 50KM radius of IITK is found from GPS
@@ -388,10 +411,11 @@ void initializeAlt()
 	inav.last_good_ext_pos.z = sens_ext_pos.position.z;
 	inav.last_good_ext_pos_update = sens_ext_pos.stamp;
 	inav.position_correction.z = 0.0f;
-	inav.position.z = sens_ext_pos.position.z;
+	inav.position.z = sens_ext_pos.position.z;				//set initial altitude to whatever value is reached
 
-	inav.position_error.z = 0.0f;
-	inav.velocity.z = 0.0f;
+	inav.position_error.z = 0.0f;		//initial error is zero
+	inav.velocity.z = 0.0f;				//set initialize altitude to 0
+
 }
 
 void initINAV()
@@ -416,7 +440,7 @@ void initINAV()
 	inav.gps_last_update = 0;
 
 	initializeHome();
-	//TODO initialize other variables
+	//TODO UNNECESSARY initialize other variables
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
 	initializeAlt();
 
@@ -486,6 +510,7 @@ void updateINAV(uint32_t del_t)
 	inav.velocity.x += inav.position_error.x * tmp;
 	inav.velocity.y += inav.position_error.y * tmp;
 	inav.velocity.z += inav.position_error.z * inav.k2_z  * dt;
+//	debug("velocity is %f: velocity correction is %f", inav.velocity.z, inav.position_error.z * inav.k2_z  * dt);
 
 	tmp = inav.k1_xy * dt;
 	inav.position_correction.x += inav.position_error.x * tmp;
@@ -520,6 +545,8 @@ void updateINAV(uint32_t del_t)
 	inav.velocity.x += velocity_increase.x;
 	inav.velocity.y += velocity_increase.y;
 	inav.velocity.z += velocity_increase.z;
+
+//	debug("velocity is %f, velocity increase is %f", inav.velocity.z, velocity_increase.z);
 
 	//TODO CHECK the working
 	// store 3rd order estimate (i.e. estimated vertical position) for future use

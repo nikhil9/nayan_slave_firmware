@@ -131,8 +131,25 @@ static inline float constrain_float(float amt, float low, float high)
 	return ((amt)<(low)?(low):((amt)>(high)?(high):(amt)));
 }
 
-void initializeVector3fToZero(Vector3f* inp);
+static inline int constrain_int(int amt, int low, int high)
+{
+	// the check for NaN as a float prevents propogation of
+	// floating point errors through any function that uses
+	// constrain_float(). The normal float semantics already handle -Inf
+	// and +Inf
+	if (isnan(amt)) {
+		return (low+high)*0.5f;
+	}
+	return ((amt)<(low)?(low):((amt)>(high)?(high):(amt)));
+}
 
+static inline float normVec3f(Vector3f inp)
+{
+	return sqrt(pow(inp.x,2)+ pow(inp.y, 2)+ pow(inp.z, 2));
+}
+
+void initializeVector3fToZero(Vector3f* inp);
+void initializeVector2fToZero(Vector2f* inp);
 /**
  * @brief pops the first element of the queue and returns it
  * @param arr the array storing all the elements of the queue

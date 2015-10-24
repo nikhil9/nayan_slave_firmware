@@ -29,6 +29,9 @@ void initializeWPNav()
 	wp_nav._dt_pilot_inp = PILOT_INPUT_DT_50HZ;
 	wp_nav._last_pilot_update_ms = 0;
 
+	initializeVector2fToZero(&wp_nav._loiter_desired_accel);
+	initializeVector2fToZero(&wp_nav.waypoint);
+
 	wp_nav._wp_last_update = 0;
 	wp_nav._wp_step = 0;
 	wp_nav._track_length = 0;
@@ -49,6 +52,9 @@ void initializeWPNav()
 	wp_nav._flags.slowing_down = 0;
 	wp_nav._flags.recalc_wp_leash = 0;
 	wp_nav._flags.new_wp_destination = 0;
+
+	initializeLPF(&wp_nav.channel6_filter);
+	wp_nav.channel6_filter.cutoff_freq = 0.4;
 }
 
 void loiter_run()
@@ -63,49 +69,74 @@ void loiter_run()
 		if (dt >= 0.2f) {
 			dt = 0.0f;
 		}
+//		getNavDesiredAcceleration();
 		getPilotDesiredAcceleration();
 		getPilotDesiredYawRate();
 		getPilotClimbRate();
 	}
 	updateLoiter();
-	setAttitude();
+	setAttitude(pos_control.roll_target, pos_control.pitch_target, wp_nav._pilot_desired_yaw_rate);
 
 	updateAltHold();
 	// send throttle to attitude controller with angle boost
-	setThrottleOut(pos_control.throttle_out, 1);
+	setThrottleOut(pos_control.throttle_in, 1);
 
 	//set target altitude based on the desired climb rate
 }
 
+void getNavDesiredAcceleration()
+{
+	Vector2f desired_accel;
+	desired_accel.x = pow(OMEGA,2)*(wp_nav.waypoint.x - pos_control.pos_target.x) -2*TAU*pos_control.vel_desired.x;
+	desired_accel.y = pow(OMEGA,2)*(wp_nav.waypoint.y - pos_control.pos_target.y) -2*TAU*pos_control.vel_desired.y;
+
+	wp_nav._pilot_accel_fwd_cms =  desired_accel.x*ahrs.cos_psi + desired_accel.y*ahrs.sin_psi;
+	wp_nav._pilot_accel_rgt_cms = -desired_accel.x*ahrs.sin_psi + desired_accel.y*ahrs.cos_psi;
+
+}
+
 void getPilotDesiredAcceleration()
 {
-	//TODO set the channel mapping properly
-	int16_t control_pitch = (rc_in[1] - STICK_MID);
-	int16_t control_roll = (rc_in[0] - STICK_MID);
+	int16_t control_pitch_in = constrain_int(rc_in[1], STICK_MIN, STICK_MAX);
+	int16_t control_roll_in = constrain_int(rc_in[0], STICK_MIN, STICK_MAX);
+
+	int16_t control_pitch = (control_pitch_in - STICK_MID);
+	int16_t control_roll = (control_roll_in - STICK_MID);
+	//TODO check the above for errors
+
 	if(abs(control_pitch) < STICK_DEADBAND)
 		control_pitch = 0;
 	if(abs(control_roll) < STICK_DEADBAND)
 		control_roll = 0;
+
+	control_pitch = 0;	// TODO override added to check without remote
+	control_roll = 0;
+
 	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 }
 
 void getPilotDesiredYawRate()
 {
-	wp_nav._pilot_desired_yaw_rate = (rc_in[3] - STICK_MID)*STICK_TO_CENTIDEGREEPS;
+	//TODO check these formulae for errors
+	int16_t control_yaw_rate = constrain_int(rc_in[3], STICK_MIN, STICK_MAX);
+	wp_nav._pilot_desired_yaw_rate = (control_yaw_rate - STICK_MID)*STICK_TO_DEGREEPS;
+
+	wp_nav._pilot_desired_yaw_rate = 0; //TODO override added to check without remote
 }
 
 void getPilotClimbRate()
 {
-	//TODO correct the values of constants so that they are in accordance with the nayan platform
+	//TODO check these formulae for errors
 	float desired_rate;
 
-	float deadband_top = MID_STICK + THROTTLE_DEADZONE;
-	float deadband_bottom = MID_STICK - THROTTLE_DEADZONE;
+	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;
+	float deadband_bottom = MID_STICK_THROTTLE - THROTTLE_DEADZONE;
 
 	// ensure a reasonable throttle value
 	float throttle_control = constrain_float(rc_in[2],THROTTLE_MIN,THROTTLE_MAX);
 
+	throttle_control = constrain_float(MID_STICK_THROTTLE,THROTTLE_MIN,THROTTLE_MAX); //TODO override added to check without remote
 
 	// check throttle is above, below or in the deadband
 	if (throttle_control < deadband_bottom)

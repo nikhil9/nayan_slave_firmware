@@ -90,10 +90,10 @@ static void send_gps(void){
 	mavlink_msg_global_position_int_send(
 			MAVLINK_COMM_0,
 			millis(),
-			sens_gps.lat,
-			sens_gps.lng,
-			sens_gps.alt,
-			sens_gps.alt,
+			x_cm*1e5,							//TODO removes this after debuggin position
+			y_cm*1e5,							//TODO remove this after debuggin
+			sens_gps.alt,					//TODO remove this after debugging
+			sens_gps.alt,					//TODO remove this
 			velocity.x,
 			velocity.y,
 			velocity.z,
@@ -125,19 +125,20 @@ static void send_sim_state(void)
 {
 	mavlink_msg_sim_state_send(
 			MAVLINK_COMM_0,
-			pos_control.vel_desired.x,
 			pos_control.pos_target.x,
+			pos_control.pos_error.x,
 			pos_control.vel_target.x,
-			pos_control.accel_target.x,
-			pos_control.roll_target,
-			pos_control.pitch_target,
-			pos_control.throttle_out,
-			ahrs.accel_ef.x,
-			ahrs.accel_ef.y,
-			ahrs.accel_ef.z,
-			velocity.x,
-			velocity.y,
-			velocity.z,
+			pos_control.accel_target_jerk_limited.x,
+//			q[0],q[1],q[2],q[3],
+			ic_rc_or_data.ic_rc.rc1,
+			ic_rc_or_data.ic_rc.rc2,
+			ic_rc_or_data.ic_rc.rc3,
+			pos_control.accel_target_filter_x.output,
+			pos_control.accel_target_filter_y.output,
+			pos_control.accel_target.z,
+			pos_control.pos_target.x,
+			pos_control.pos_target.y,
+			pos_control.pos_target.z,
 			inav.position.x,
 			inav.position.y,
 			inav.position.z,
@@ -148,6 +149,36 @@ static void send_sim_state(void)
 			inav.velocity.z
 			);
 }
+
+//for debugging x coordinate
+//static void send_sim_state(void)
+//{
+//	mavlink_msg_sim_state_send(
+//			MAVLINK_COMM_0,
+//			pos_control.pos_target.x,
+//			pos_control.pos_error.x,
+//			pos_control.vel_error.x,
+//			pos_control.vel_desired.x,
+//			pos_control.roll_out,
+//			pos_control.pitch_out,
+//			pos_control.throttle_out,
+//			pos_control.accel_target.x,
+//			pos_control.accel_target.y,
+//			pos_control.accel_target.z,
+//			pos_control.vel_target.x,
+//			pos_control.vel_target.y,
+//			pos_control.vel_target.z,
+//			inav.position.x,
+//			inav.position.y,
+//			inav.position.z,
+//			0,
+//			0,
+//			inav.velocity.x,
+//			inav.velocity.y,
+//			inav.velocity.z
+//			);
+//}
+
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
