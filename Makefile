@@ -95,6 +95,7 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/memstreams.c \
        stubs.c \
        Setup.c \
+       params.c \
        intercomm.c \
        odroid_comm.c \
        inertial_nav.c \

@@ -405,6 +405,7 @@ void initializeAlt()
 	{
 		if(sens_ext_pos.stamp != 0)
 			flag_EXT_POS_HOME_FOUND = 1;
+		delay(100);
 	}
 
 	inav.position_base.z = sens_ext_pos.position.z;
@@ -433,7 +434,7 @@ void initINAV()
 	//update the gain parameters
 	inav.time_constant_xy = AP_INTERTIALNAV_TC_XY;
 	inav.time_constant_z = AP_INTERTIALNAV_TC_Z;
-	updateGains();
+	updateINAVGains();
 
 	//update gps time variables
 	inav.gps_last = 0;
@@ -446,7 +447,7 @@ void initINAV()
 
 }
 
-void updateGains()
+void updateINAVGains()
 {
 	// X & Y axis time constant
 	if (inav.time_constant_xy == 0.0f)

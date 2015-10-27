@@ -21,12 +21,15 @@
 #include "OS_PORT/ext/mavlink/v1.0/common/mavlink.h"
 #include "intercomm.h"
 #include "main.h"
+#include "params.h"
 
 const float MILLIG_TO_MS2 = 9.80665f / 1000.0f;
 const float MS2_TO_MILLIG = 1000.0f/9.80665f;
 const float RAD_TO_MILLIRAD = 1000.0f;
 
 mavlink_system_t mavlink_system;
+
+static mavlink_param_set_t param_set;
 
 static mavlink_rc_channels_override_t rc_channels_override;
 
@@ -61,9 +64,9 @@ static void send_scaled_imu(void){
 			  (int16_t)(sens_imu.gyro_calib.x*RAD_TO_MILLIRAD),
 			  (int16_t)(sens_imu.gyro_calib.y*RAD_TO_MILLIRAD),
 			  (int16_t)(sens_imu.gyro_calib.z*RAD_TO_MILLIRAD),
-			  (int16_t)(rc_channels_override.chan1_raw),
-			  (int16_t)(rc_channels_override.chan2_raw),
-			  (int16_t)1000);
+			  (int16_t)0,
+			  (int16_t)0,
+			  (int16_t)0);
 }
 
 /**
@@ -90,10 +93,10 @@ static void send_gps(void){
 	mavlink_msg_global_position_int_send(
 			MAVLINK_COMM_0,
 			millis(),
-			x_cm*1e5,							//TODO removes this after debuggin position
-			y_cm*1e5,							//TODO remove this after debuggin
-			sens_gps.alt,					//TODO remove this after debugging
-			sens_gps.alt,					//TODO remove this
+			sens_gps.lat,						//sending out raw gps data as received from LLP
+			sens_gps.lng,
+			sens_gps.alt*CM_TO_MM,
+			sens_gps.alt*CM_TO_MM,
 			velocity.x,
 			velocity.y,
 			velocity.z,
@@ -108,7 +111,7 @@ static void send_rc_in(void){
     	MAVLINK_COMM_0,
         millis(),
         0, // port
-        rc_in[0],
+        rc_in[0],								//sending out raw RC input data as received from LLP
 		rc_in[1],
 		rc_in[2],
 		rc_in[3],
@@ -118,6 +121,44 @@ static void send_rc_in(void){
 		0,
         -1);
 }
+
+static void send_local_position_ned(void)
+{
+	mavlink_msg_local_position_ned_send(
+			MAVLINK_COMM_0,
+			millis(),
+			x_cm,
+			y_cm,
+			sens_gps.alt,
+			0,
+			0,
+			0);
+}
+
+//TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
+static void send_hil_state(void)
+{
+	mavlink_msg_hil_state_send(
+			MAVLINK_COMM_0,
+			millis(),
+			pos_control.pos_desired.x,
+			pos_control.pos_desired.y,
+			pos_control.pos_desired.z,
+			pos_control.vel_desired.x,
+			pos_control.vel_desired.y,
+			pos_control.vel_desired.z,
+			pos_control.pos_target.x*10,
+			pos_control.pos_target.y*10,
+			pos_control.pos_target.z*10,
+			pos_control.vel_target.x*10,
+			pos_control.vel_target.y*10,
+			pos_control.vel_target.z*10,
+			pos_control.accel_target_filter_x.output*10,
+			pos_control.accel_target_filter_y.output*10,
+			pos_control.accel_target.z*10
+			);
+}
+
 /**
  * changes made by atulya
  */
@@ -125,20 +166,20 @@ static void send_sim_state(void)
 {
 	mavlink_msg_sim_state_send(
 			MAVLINK_COMM_0,
-			pos_control.pos_target.x,
-			pos_control.pos_error.x,
-			pos_control.vel_target.x,
-			pos_control.accel_target_jerk_limited.x,
-//			q[0],q[1],q[2],q[3],
+//			pos_control.pos_target.x,
+//			pos_control.pos_error.x,
+//			pos_control.vel_target.x,
+//			pos_control.accel_target_jerk_limited.x,
+			q[0],q[1],q[2],q[3],
 			ic_rc_or_data.ic_rc.rc1,
 			ic_rc_or_data.ic_rc.rc2,
 			ic_rc_or_data.ic_rc.rc3,
-			pos_control.accel_target_filter_x.output,
-			pos_control.accel_target_filter_y.output,
-			pos_control.accel_target.z,
-			pos_control.pos_target.x,
-			pos_control.pos_target.y,
-			pos_control.pos_target.z,
+			ahrs.accel_ef.x*100,
+			ahrs.accel_ef.y*100,
+			-(ahrs.accel_ef.z*100 + GRAVITY_CMSS),
+			pos_control._p_pos_xy.kP,
+			pos_control._p_pos_z.kP,
+			pos_control._p_vel_z.kP,
 			inav.position.x,
 			inav.position.y,
 			inav.position.z,
@@ -149,36 +190,6 @@ static void send_sim_state(void)
 			inav.velocity.z
 			);
 }
-
-//for debugging x coordinate
-//static void send_sim_state(void)
-//{
-//	mavlink_msg_sim_state_send(
-//			MAVLINK_COMM_0,
-//			pos_control.pos_target.x,
-//			pos_control.pos_error.x,
-//			pos_control.vel_error.x,
-//			pos_control.vel_desired.x,
-//			pos_control.roll_out,
-//			pos_control.pitch_out,
-//			pos_control.throttle_out,
-//			pos_control.accel_target.x,
-//			pos_control.accel_target.y,
-//			pos_control.accel_target.z,
-//			pos_control.vel_target.x,
-//			pos_control.vel_target.y,
-//			pos_control.vel_target.z,
-//			inav.position.x,
-//			inav.position.y,
-//			inav.position.z,
-//			0,
-//			0,
-//			inav.velocity.x,
-//			inav.velocity.y,
-//			inav.velocity.z
-//			);
-//}
-
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
@@ -192,13 +203,13 @@ static msg_t mavlinkSend(void *arg) {
 
   uint16_t hbt_cnt = 0;
 
-  uint16_t gps_cnt = 1;
-
-  uint16_t rc_cnt = 0;
-
-  uint16_t vis_cnt = 2;
+  uint16_t gps_cnt = 0;
+  uint16_t local_cnt = 0;
 
   uint16_t imu_cnt = 3;
+  uint16_t sim_state_cnt = 1;
+  uint16_t hil_cnt = 2;
+
 
   while (TRUE) {
 
@@ -207,32 +218,43 @@ static msg_t mavlinkSend(void *arg) {
 		  hbt_cnt = 0;
 	  }
 
-	  if(imu_cnt > 4)
-	  send_scaled_imu();
+	  if(gps_cnt > 3){
 
-	  send_attitude();
+		  if(local_cnt == 0)
+			  send_gps();
+		  if(local_cnt == 1)
+			  send_rc_in();
+		  if(local_cnt == 2)
+			  send_local_position_ned();
 
-	  if(vis_cnt > 4)
-	  {
-		  send_sim_state();
-		  vis_cnt = 0;
-	  }
-
-	  if(gps_cnt > 4){
-		  send_gps();
+		  local_cnt = (local_cnt + 1)%3;
 		  gps_cnt = 0;
 	  }
 
-	  if(rc_cnt > 4){
-		  send_rc_in();
-		  rc_cnt = 0;
+	  if(imu_cnt > 3)
+	  {
+		  send_scaled_imu();
+		  send_attitude();
+		  imu_cnt = 0;
+	  }
+
+	  if(sim_state_cnt > 3)
+	  {
+		  send_sim_state();
+		  sim_state_cnt = 0;
+	  }
+
+	  if(hil_cnt > 3)
+	  {
+		  send_hil_state();
+		  hil_cnt = 0;
 	  }
 
 	  chThdSleep(US2ST(4500));
 	  hbt_cnt++;
 	  gps_cnt++;
-	  rc_cnt++;
-	  vis_cnt++;
+	  sim_state_cnt++;
+	  hil_cnt++;
 	  imu_cnt++;
 
   }
@@ -277,27 +299,28 @@ uint8_t comm_receive_ch(mavlink_channel_t chan)
 void send_params(void){
 	mavlink_msg_param_value_send(
 					 MAVLINK_COMM_0,
-					 "SYSID_THISMAV",
+					 sysid_thismav,
 					 1,
 					 MAVLINK_TYPE_UINT8_T,
-					 0,
-					 3);
+					 PARAM_COUNT,
+					 sysid_thismav_index);
 
 	mavlink_msg_param_value_send(
 					 MAVLINK_COMM_0,
-					 "SYSID_SW_TYPE",
+					 sysid_sw_type,
 					 10,
 					 MAVLINK_TYPE_UINT8_T,
-					 1,
-					 3);
+					 PARAM_COUNT,
+					 sysid_sw_type_index);
 
 	mavlink_msg_param_value_send(
 					 MAVLINK_COMM_0,
-					 "SYSID_MYGCS",
+					 sysid_mygcs,
 					 255,
 					 MAVLINK_TYPE_UINT8_T,
-					 2,
-					 3);
+					 PARAM_COUNT,
+					 sysid_mygcs_index);
+	FWparamQSend();
 }
 
 /**
@@ -343,7 +366,19 @@ void handleMessage(mavlink_message_t* msg)
     	mavlink_msg_mission_count_send(MAVLINK_COMM_0, 1, 0, 0);
     	break;
     }
+    case MAVLINK_MSG_ID_PARAM_SET:
+    {
+    	mavlink_msg_param_set_decode(msg, &param_set);
 
+    	/* local name buffer to enforce null-terminated string */
+		char name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN + 1];
+		strncpy(name, param_set.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
+		/* enforce null termination */
+		name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
+		/* attempt to find parameter, set and send it */
+		FWupdateParamMavLink(name, param_set.param_value);
+		break;
+    }
     /**
      * additions by atulya
      */
@@ -425,5 +460,6 @@ void odroid_comm_init(void){
 	chThdCreateStatic(mavlinkSendThread, sizeof(mavlinkSendThread), NORMALPRIO, mavlinkSend, NULL);
 
 }
+
 
 #endif /* ODROID_COMM_C_ */

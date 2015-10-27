@@ -37,6 +37,8 @@ static void correctIMUTemp(void)
 	sens_imu.gyro_calib.y = -sens_imu.gyro_calib.x;
 	sens_imu.gyro_calib.x = -tmp;
 
+	//on 24th OCT the rc channel 6 and 7 were switched hence take care of them too
+
 }
 
 /**
@@ -112,8 +114,8 @@ void update_ic_data(void){
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{
 		sens_gps.stamp = stamp;
-		sens_gps.lat = (uint32_t)(_position_gps.x);
-		sens_gps.lng = (uint32_t)(_position_gps.y);
+		sens_gps.lat = (int32_t)(_position_gps.x);
+		sens_gps.lng = (int32_t)(_position_gps.y);
 		sens_gps.alt = _position_gps.z;
 	}
 

@@ -116,7 +116,7 @@ void setupHomePosition(void);
 /**
  * @brief update the gains of the complementary filter used to update the inertial navigation data
  */
-void updateGains(void);
+void updateINAVGains(void);
 
 /**
  * @brief sets the desired postion in the inertial navigation system units in cm

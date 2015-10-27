@@ -10,6 +10,8 @@
 #ifndef AUTOPILOT_MATH_H_
 #define AUTOPILOT_MATH_H_
 
+#define CM_TO_MM 10
+
 #define max(a,b) ((a)>(b)?(a):(b))
 #define min(a,b) ((a)<(b)?(a):(b))
 

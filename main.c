@@ -111,6 +111,13 @@ int main(void){
 
 		//debug("MSG : RPY %f, %f ,%f", ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
 		uint32_t end = micros();
+//		debug("POS_XY_P is %f and POS_ALT_P is %f", pos_control._p_pos_xy.kP, pos_control._p_pos_z.kP);
+//		debug("VEL_XY_PI is %f, %f, %f and VEL_ALT_P is %f", pos_control._pi_vel_xy.kP,
+//				pos_control._pi_vel_xy.kI, pos_control._pi_vel_xy.Imax, pos_control._p_vel_z.kP);
+//		debug("ACCEL_Z_PID is %f, %f, %f, %f, %f ", pos_control._pid_accel_z.kP,
+//						pos_control._pid_accel_z.kI, pos_control._pid_accel_z.kD,
+//						pos_control._pid_accel_z.Imax, pos_control._pid_accel_z.filt_hz);
+
 
 //		debug("lat home is: %d; lng_home is: %d", ahrs.lat_home, ahrs.lng_home);
 		int32_t duration = (end - start);				// time for which this thread should sleep
