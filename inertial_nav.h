@@ -36,6 +36,9 @@
 #define AP_HISTORIC_Z_SIZE							15		// assuming a 150 ms delay for the ultrasonic data if the AHRS is called at 100Hz
 #define GPS_RADIUS_CM								400
 #define EXT_POS_RADIUS_CM							250
+#define MAX_ACCEL_CHANGE							8		// 80000cmss * 0.01
+#define MIN_ACCEL_MEASURED							1
+#define MAX_BODY_ACCEL								1000	//10mss
 
 /**
  * @brief implements basic variables required for inertial navigation
@@ -66,6 +69,7 @@ typedef struct
 	Vector3f last_good_ext_pos;
 	uint32_t last_good_ext_pos_update;
 
+	Vector3f last_good_imu;
 	uint32_t last_good_imu_update;
 
 	float time_constant_xy;			/**< PARAM time constant for the gain parameters #time_constant_xy.*/

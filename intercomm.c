@@ -105,18 +105,15 @@ void update_ic_data(void){
 
 	correctIMUTemp();
 
-	if(_position_gps.z != sens_gps.alt)
-	{
-		sens_ext_pos.stamp = stamp;
-		sens_ext_pos.position.z = sens_gps.alt;
-	}
-
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{
 		sens_gps.stamp = stamp;
 		sens_gps.lat = (int32_t)(_position_gps.x);
 		sens_gps.lng = (int32_t)(_position_gps.y);
 		sens_gps.alt = _position_gps.z;
+
+		sens_ext_pos.stamp = stamp;
+		sens_ext_pos.position.z = _position_gps.z;
 	}
 
 	velocity.x = ic_imu_data.ic_imu.vx;

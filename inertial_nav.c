@@ -21,22 +21,42 @@ static void printQueue(float arr[], Queue_property q_property)
 
 int isIMUGlitching(void)
 {
-	int all_ok = 0;
+	int all_ok = 1;
 
-	//assuming that a sane accelerometer is at least 1mss
-	if(normVec3f(sens_imu.accel_calib) > 1)
-		all_ok = 1;
+	if(isnan(sens_imu.accel_calib.x)||isnan(sens_imu.accel_calib.y)||isnan(sens_imu.accel_calib.z))
+		all_ok = 0;
+
+	if(isinf(sens_imu.accel_calib.x)||isinf(sens_imu.accel_calib.y)||isinf(sens_imu.accel_calib.z))
+		all_ok = 0;
+
+	//assuming that a sane accelerometer reading + g  is at least 1mss
+	if(normVec3f(sens_imu.accel_calib) < MIN_ACCEL_MEASURED)
+		all_ok = 0;
+
+	q[0] = normVec3f(sens_imu.accel_calib);
+
+	Vector3f accel_diff;
+	accel_diff.x = sens_imu.accel_calib.x - inav.last_good_imu.x;
+	accel_diff.y = sens_imu.accel_calib.y - inav.last_good_imu.y;
+	accel_diff.z = sens_imu.accel_calib.z - inav.last_good_imu.z;
+
+//	q[1] = normVec3f(accel_diff);
+
+	if(normVec3f(accel_diff) > MAX_ACCEL_CHANGE)
+		all_ok = 0;
 
 	if(all_ok == 1 )
+	{
+		inav.last_good_imu = sens_imu.accel_calib;
 		inav.last_good_imu_update = sens_imu.stamp;
+	}
+	q[2] = all_ok;
 
 	return (!all_ok);
 }
 
 void updateAHRS(void)
 {
-	if(isIMUGlitching())
-		return ;
 
 	ahrs.cos_phi = cosf(ahrs.attitude.x);
 	ahrs.sin_phi = sinf(ahrs.attitude.x);
@@ -76,12 +96,18 @@ static int isGPSGlitching(void)
 	float distance_cm = sqrt(dlat*dlat + dlong*dlong)*LATLON_TO_CM;
 //	debug("distance to last_good_lat is %f", distance_cm);
 
-	int all_ok = 0;
+	int all_ok = 1;
+
+	if(isnan(sens_gps.lat) || isnan(sens_gps.lng))
+		all_ok = 0;
+
+	if(isinf(sens_gps.lat) || isinf(sens_gps.lng))
+		all_ok = 0;
 
 	    // all ok if within a given hardcoded radius
-	if (distance_cm <= GPS_RADIUS_CM)
+	if (distance_cm > GPS_RADIUS_CM)
 	{
-		all_ok = 1;
+		all_ok = 0;
 	}
 	//TODO complete the accel_based distance
 //	else
@@ -220,14 +246,21 @@ static void checkGPS(void)
 static int isExtPosGlitching(void)
 {
 	// calculate time since last sane gps reading in ms
-	float sane_dt = (sens_gps.stamp - inav.last_good_gps_update) / 1000.0f;
+	float sane_dt = (sens_ext_pos.stamp - inav.last_good_gps_update) / 1000.0f;
 
 	float distance_cm = sens_ext_pos.position.z - inav.last_good_ext_pos.z;
 	debug("distance to last_good_lat is %f", distance_cm);
 
 	int all_ok = 1;
-
+//	q[2] = distance_cm;
 		// all ok if within a given hardcoded radius
+
+	if(isnan(sens_ext_pos.position.z))
+		all_ok = 0;
+
+	if(isinf(sens_ext_pos.position.z))
+		all_ok = 0;
+
 	if (fabs(distance_cm) > EXT_POS_RADIUS_CM)
 	{
 		all_ok = 0;
@@ -245,6 +278,8 @@ static int isExtPosGlitching(void)
 	//		accel_based_distance = 0.5f * _accel_max_cmss * sane_dt * sane_dt;
 	//		all_ok = (distance_cm <= accel_based_distance);
 	//	}
+
+	q[3] = all_ok;
 
 	if(all_ok == 1)
 	{
@@ -440,6 +475,9 @@ void initINAV()
 	inav.gps_last = 0;
 	inav.gps_last_update = 0;
 
+	//initialize IMU
+	inav.last_good_imu = sens_imu.accel_calib;
+
 	initializeHome();
 	//TODO UNNECESSARY initialize other variables
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
@@ -483,6 +521,7 @@ void updateINAV(uint32_t del_t)
 	if(dt > INERTIAL_NAV_DELTAT_MAX)
 		return;
 
+	ang_vel[0] = dt;
 	// check if new gps readings have arrived and use them to correct position estimates
 	checkGPS();
 
@@ -496,6 +535,14 @@ void updateINAV(uint32_t del_t)
 
 	accel_ef.z = -(ahrs.accel_ef.z*100 + GRAVITY_CMSS); //converting acceleration from NED to NEU for proper calculation of altitude
 
+	float accel_norm = normVec3f(accel_ef);
+	q[1] = accel_norm;
+
+	//assuming body acceleration more than 10mss is not possible and that this is probably a glitch
+	if(accel_norm > MAX_BODY_ACCEL)
+		return;
+
+
 	//position is assumed with respect to an NEU frame
 	// convert ef position error to horizontal body frame
 	Vector2f position_error_hbf;
@@ -507,10 +554,12 @@ void updateINAV(uint32_t del_t)
 	inav.accel_correction_hbf.y += position_error_hbf.y * tmp;
 	inav.accel_correction_hbf.z += inav.position_error.z * inav.k3_z  * dt;
 
+//	q[3] = inav.position_error.z;
 	tmp = inav.k2_xy * dt;
 	inav.velocity.x += inav.position_error.x * tmp;
 	inav.velocity.y += inav.position_error.y * tmp;
 	inav.velocity.z += inav.position_error.z * inav.k2_z  * dt;
+	ang_vel[1] = inav.position_error.z * inav.k2_z  * dt;
 //	debug("velocity is %f: velocity correction is %f", inav.velocity.z, inav.position_error.z * inav.k2_z  * dt);
 
 	tmp = inav.k1_xy * dt;
@@ -528,6 +577,7 @@ void updateINAV(uint32_t del_t)
 	velocity_increase.x = (accel_ef.x + accel_correction_ef.x) * dt;
 	velocity_increase.y = (accel_ef.y + accel_correction_ef.y) * dt;
 	velocity_increase.z = (accel_ef.z + inav.accel_correction_hbf.z) * dt;
+//	q[3] = accel_ef.z;
 
 	// calculate new estimate of position
 	inav.position_base.x += (inav.velocity.x + velocity_increase.x*0.5) * dt;
@@ -546,6 +596,7 @@ void updateINAV(uint32_t del_t)
 	inav.velocity.x += velocity_increase.x;
 	inav.velocity.y += velocity_increase.y;
 	inav.velocity.z += velocity_increase.z;
+	ang_vel[2] = velocity_increase.z;
 
 //	debug("velocity is %f, velocity increase is %f", inav.velocity.z, velocity_increase.z);
 

@@ -54,7 +54,7 @@ void initializeWPNav()
 	wp_nav._flags.new_wp_destination = 0;
 
 	initializeLPF(&wp_nav.channel6_filter);
-	wp_nav.channel6_filter.cutoff_freq = 0.4;
+	wp_nav.channel6_filter.cutoff_freq = 0.8;
 }
 
 void loiter_run()
@@ -73,15 +73,21 @@ void loiter_run()
 		getPilotDesiredAcceleration();
 		getPilotDesiredYawRate();
 		getPilotClimbRate();
+
+		wp_nav._last_pilot_update_ms = now;
 	}
 	updateLoiter();
 	setAttitude(pos_control.roll_target, pos_control.pitch_target, wp_nav._pilot_desired_yaw_rate);
 
-	updateAltHold();
-	// send throttle to attitude controller with angle boost
-	setThrottleOut(pos_control.throttle_in, 1);
-
+	//Alt hold control code
 	//set target altitude based on the desired climb rate
+	setAltTargetfromClimbRate(wp_nav._pilot_desired_climb_rate, POSCONTROL_DT_100HZ);
+
+	updateZController();
+
+	// send throttle to attitude controller with angle boost
+	setThrottleOut(pos_control.throttle_in, 1, POSCONTROL_THROTTLE_CUTOFF_FREQ);
+
 }
 
 void getNavDesiredAcceleration()
@@ -102,15 +108,15 @@ void getPilotDesiredAcceleration()
 
 	int16_t control_pitch = (control_pitch_in - STICK_MID);
 	int16_t control_roll = (control_roll_in - STICK_MID);
-	//TODO check the above for errors
+	//TODO check the above for errors in sign
 
 	if(abs(control_pitch) < STICK_DEADBAND)
 		control_pitch = 0;
 	if(abs(control_roll) < STICK_DEADBAND)
 		control_roll = 0;
 
-	control_pitch = 0;	// TODO override added to check without remote
-	control_roll = 0;
+//	control_pitch = 0;	// TODO override added to check without remote
+//	control_roll = 0;
 
 	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
@@ -122,12 +128,11 @@ void getPilotDesiredYawRate()
 	int16_t control_yaw_rate = constrain_int(rc_in[3], STICK_MIN, STICK_MAX);
 	wp_nav._pilot_desired_yaw_rate = (control_yaw_rate - STICK_MID)*STICK_TO_DEGREEPS;
 
-	wp_nav._pilot_desired_yaw_rate = 0; //TODO override added to check without remote
+//	wp_nav._pilot_desired_yaw_rate = 0; //TODO override added to check without remote
 }
 
 void getPilotClimbRate()
 {
-	//TODO check these formulae for errors
 	float desired_rate;
 
 	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;
@@ -135,8 +140,6 @@ void getPilotClimbRate()
 
 	// ensure a reasonable throttle value
 	float throttle_control = constrain_float(rc_in[2],THROTTLE_MIN,THROTTLE_MAX);
-
-	throttle_control = constrain_float(MID_STICK_THROTTLE,THROTTLE_MIN,THROTTLE_MAX); //TODO override added to check without remote
 
 	// check throttle is above, below or in the deadband
 	if (throttle_control < deadband_bottom)
@@ -240,7 +243,6 @@ void updateLoiter()
 	float dt = (millis() - pos_control.last_update_xy_ms)*0.001f;
 
 	// run at poscontrol update rate.
-	// TODO: (something present on original code)run on user input to reduce latency, maybe if (user_input || dt >= _pos_control.get_dt_xy())
 	if (dt >= pos_control.dt_xy)
 	{
 		// sanity check dt
@@ -252,20 +254,3 @@ void updateLoiter()
 	}
 }
 
-void updateAltHold()
-{
-	float dt = (millis() - pos_control.last_update_z_ms)*0.001f;
-
-	// run at poscontrol update rate.
-	// TODO: (something present on original code)run on user input to reduce latency, maybe if (user_input || dt >= _pos_control.get_dt_xy())
-	if (dt >= pos_control.dt)
-	{
-		// sanity check dt
-		if (dt >= 0.2f) {
-			dt = 0.0f;
-		}
-
-		setAltTargetfromClimbRate(wp_nav._pilot_desired_climb_rate, pos_control.dt);
-		updateZController();
-	}
-}

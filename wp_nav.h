@@ -137,6 +137,4 @@ void getPilotClimbRate(void);
 
 void getNavDesiredAcceleration(void);
 
-void updateAltHold(void);
-
 #endif /* WP_NAV_H_ */

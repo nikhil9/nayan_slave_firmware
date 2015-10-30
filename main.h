@@ -86,6 +86,7 @@ extern uint16_t rc_in[7];
 
 //variables for sim_state
 extern float q[4];
+extern float ang_vel[3];
 
 //TODO remove the temp variables after use
 extern float x_cm;

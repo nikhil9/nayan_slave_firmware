@@ -16,7 +16,7 @@ void initializePosController()
 	initializePI(&pos_control._pi_vel_xy, VEL_XY_P, VEL_XY_I, VEL_XY_IMAX, VEL_XY_FILT_HZ);
 
 	pos_control.dt = POSCONTROL_DT_100HZ;
-	pos_control.dt_xy = POSCONTROL_DT_100HZ;
+	pos_control.dt_xy = POSCONTROL_DT_50HZ;
 	pos_control.last_update_xy_ms = 0;
 	pos_control.last_update_z_ms = 0;
 	pos_control.throttle_hover = POSCONTROL_THROTTLE_HOVER;
@@ -32,6 +32,8 @@ void initializePosController()
 	pos_control.roll_target = 0.0f;
 	pos_control.pitch_target = 0.0f;
 	pos_control.accel_xy_filt_hz = POSCONTROL_ACCEL_FILTER_HZ;
+	pos_control.throttle_in_filter.cutoff_freq = POSCONTROL_THROTTLE_CUTOFF_FREQ;
+	pos_control.throttle_in_filter.output = MID_STICK_THROTTLE;
 
 	initializeVector3fToZero(&pos_control.pos_target);
 	initializeVector3fToZero(&pos_control.pos_error);
@@ -445,7 +447,7 @@ static void accelToThrottle(float accel_target_z)
 
 	pos_control.throttle_in = p+i+d+pos_control.throttle_hover;
 
-//	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);
+//	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);			//used in wp_nav.c loiter_run
 
 }
 static void rateToAccelZ(void)
@@ -476,15 +478,15 @@ static void rateToAccelZ(void)
 	// feed forward desired acceleration calculation
 	if (pos_control.dt > 0.0f)
 	{
-	    	if (!pos_control._flags.freeze_ff_z)
-	    	{
-	    		pos_control.accel_feedforward.z = (pos_control.vel_target.z - pos_control.vel_last.z)/pos_control.dt;
-	        }
-	    	else
-	        {
-	    		// stop the feed forward being calculated during a known discontinuity
-	    		pos_control._flags.freeze_ff_z = 0;
-	    	}
+		if (!pos_control._flags.freeze_ff_z)
+		{
+			pos_control.accel_feedforward.z = (pos_control.vel_target.z - pos_control.vel_last.z)/pos_control.dt;
+		}
+		else
+		{
+			// stop the feed forward being calculated during a known discontinuity
+			pos_control._flags.freeze_ff_z = 0;
+		}
 	}
 	else
 	{
@@ -613,7 +615,7 @@ void updateZController()
     	pos_control._flags.recalc_leash_z = 0;
     }
 
-    //TODO call position controller
+    //call position controller
     posToRateZ();
 }
 void setAttitude(float roll, float pitch, float yaw_rate)
@@ -628,18 +630,33 @@ void setAttitude(float roll, float pitch, float yaw_rate)
 
 	ic_rc_or_data.ic_rc.rc1 = pos_control.roll_out;
 	ic_rc_or_data.ic_rc.rc2 = pos_control.pitch_out;
+//	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
+//	ic_rc_or_data.ic_rc.rc2 = rc_in[1];
 	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
 //	ic_rc_or_data.ic_rc.rc1 = ;
-	//TODO use this data structure to give commmands to LLP ic_rc_or_data.ic_rc.rc1
 }
 
-void setThrottleOut(float throttle_out, uint8_t apply_angle_boost)
+void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 {
-	//TODO convert input throttle to output PWM of the LLP
+	float throttle_out;
+	//TODO check filt_hz and angle_boost
+	pos_control.throttle_in_filter.cutoff_freq = filt_hz;
+//	ang_vel[0] = throttle_in;
+	throttle_in = applyLPF(&pos_control.throttle_in_filter, throttle_in, POSCONTROL_DT_100HZ);
+//	ang_vel[1] = throttle_in;
 //	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
 
-//	if(apply_angle_boost == 1)
-//		throttle_out = throttle_out/(ahrs.cos_theta*ahrs.cos_phi);
+	float cos_tilt = ahrs.cos_theta * ahrs.cos_phi;
+	float boost_factor = 1.0f/constrain_float(cos_tilt, 0.5f, 1.0f);
+
+	if(apply_angle_boost == 1)
+	{
+		throttle_out = (throttle_in - (THROTTLE_MIN+130))*boost_factor + (THROTTLE_MIN+130);		//throttle min was 130/1000 from nayan llp parameters
+	}
+	else
+		throttle_out = throttle_in;
+
+//	ang_vel[2] = throttle_out;
 
 	pos_control.throttle_out = constrain_int(throttle_out, THROTTLE_OUTPUT_MIN, THROTTLE_OUTPUT_MAX);
 	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;

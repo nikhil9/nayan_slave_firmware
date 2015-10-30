@@ -21,7 +21,7 @@
 
 #define POSCONTROL_SPEED                        500.0f  // default horizontal speed in cm/s	IGNORE added by atulya
 #define POSCONTROL_SPEED_DOWN                  -150.0f   // default descent rate in cm/s IGNORE added by atulya
-#define POSCONTROL_SPEED_UP                     150.0f   // default climb rate in cm/s IGNORE added by atulya
+#define POSCONTROL_SPEED_UP                     250.0f   // default climb rate in cm/s IGNORE added by atulya
 #define POSCONTROL_VEL_XY_MAX_FROM_POS_ERR      200.0f   // max speed output from pos_to_vel controller when feed forward is used IGNORE added by atulya
 
 #define POSCONTROL_ACCEL_Z                      250.0f  // default vertical acceleration in cm/s/s. IGNORE added by atulya
@@ -129,6 +129,8 @@ typedef struct
 	LowPassFilter accel_target_filter_x; // acceleration target filter
 	LowPassFilter accel_target_filter_y; // acceleration target filter
 
+	LowPassFilter throttle_in_filter;		//IGNORE added by atulya
+
 	Vector3f pos_desired;
 
 }Position_Controller;
@@ -141,7 +143,7 @@ void setAttitude(float roll, float pitch, float yaw_rate);
 
 void setAltTargetfromClimbRate(float climb_rate_cms, float dt);
 
-void setThrottleOut(float throttle_in, uint8_t apply_angle_boost);
+void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz);
 
 /**
  * @brief updates the position controller on the basis of feedback from INAV and using the desired position and velocity from above TODO

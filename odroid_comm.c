@@ -129,7 +129,7 @@ static void send_local_position_ned(void)
 			millis(),
 			x_cm,
 			y_cm,
-			sens_gps.alt,
+			sens_ext_pos.position.z,
 			0,
 			0,
 			0);
@@ -177,9 +177,9 @@ static void send_sim_state(void)
 			ahrs.accel_ef.x*100,
 			ahrs.accel_ef.y*100,
 			-(ahrs.accel_ef.z*100 + GRAVITY_CMSS),
-			pos_control._p_pos_xy.kP,
-			pos_control._p_pos_z.kP,
-			pos_control._p_vel_z.kP,
+			ang_vel[0],
+			ic_rc_or_data.ic_rc.rc4,
+			wp_nav._pilot_desired_yaw_rate,
 			inav.position.x,
 			inav.position.y,
 			inav.position.z,
@@ -238,17 +238,17 @@ static msg_t mavlinkSend(void *arg) {
 		  imu_cnt = 0;
 	  }
 
-	  if(sim_state_cnt > 3)
-	  {
+//	  if(sim_state_cnt > 3)
+//	  {
 		  send_sim_state();
-		  sim_state_cnt = 0;
-	  }
+//		  sim_state_cnt = 0;
+//	  }
 
-	  if(hil_cnt > 3)
-	  {
+//	  if(hil_cnt > 3)
+//	  {
 		  send_hil_state();
-		  hil_cnt = 0;
-	  }
+//		  hil_cnt = 0;
+//	  }
 
 	  chThdSleep(US2ST(4500));
 	  hbt_cnt++;
