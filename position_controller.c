@@ -643,7 +643,7 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 	pos_control.throttle_in_filter.cutoff_freq = filt_hz;
 //	ang_vel[0] = throttle_in;
 	throttle_in = applyLPF(&pos_control.throttle_in_filter, throttle_in, POSCONTROL_DT_100HZ);
-//	ang_vel[1] = throttle_in;
+	ang_vel[1] = throttle_in;
 //	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
 
 	float cos_tilt = ahrs.cos_theta * ahrs.cos_phi;

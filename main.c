@@ -108,7 +108,6 @@ int main(void){
 		else
 			resetController();
 
-
 		//CONDITION FOR MOTORS BEING ARMED(Note that these values may need to recalibrated in case remote is changed)
 		if(rc_in[2] < (THROTTLE_MIN + 80) && rc_in[3] > (STICK_MAX - 80))
 		{
@@ -123,7 +122,7 @@ int main(void){
 		if(count_arming == 100 && FLAG_ARMING == 0)
 		{
 			FLAG_ARMING = 1;
-			initINAV();						//need to reset the baro
+			initINAV();						//need to reset the baro when arming
 		}
 		else if( count_arming == 0)
 			FLAG_ARMING = 0;
