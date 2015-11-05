@@ -80,6 +80,35 @@ void updateAHRS(void)
 
 }
 
+void setPositionXY(float x, float y)
+{
+	inav.position_base.x = x;
+	inav.position_base.y = y;
+	inav.position_correction.x = 0.0f;
+	inav.position_correction.y = 0.0f;
+
+	// clear historic estimates
+	resetQueue(inav.historic_x, &inav.historic_x_property);
+	resetQueue(inav.historic_y, &inav.historic_y_property);
+
+	// add new position for future use
+	inav.historic_xy_counter = 0;
+	pushToQueue(inav.position_base.x, inav.historic_x, &inav.historic_x_property);
+	pushToQueue(inav.position_base.y, inav.historic_y, &inav.historic_y_property);
+}
+
+// set_altitude - set base altitude estimate in cm
+void setAltitude( float new_altitude)
+{
+    inav.position_base.z = new_altitude;
+    inav.position_correction.z = 0;
+    inav.position.z = new_altitude; // _position = _position_base + _position_correction
+    resetQueue(inav.historic_z, &inav.historic_z_property);
+
+    inav.historic_z_counter = 0;
+    pushToQueue(inav.position_base.z, inav.historic_z, &inav.historic_z_property);
+}
+
 /**
  * @brief returns whether the GPS is having any glitch
  * TODO
@@ -126,34 +155,6 @@ static int isGPSGlitching(void)
 	return (!all_ok);
 }
 
-void setPositionXY(float x, float y)
-{
-	inav.position_base.x = x;
-	inav.position_base.y = y;
-	inav.position_correction.x = 0.0f;
-	inav.position_correction.y = 0.0f;
-
-	// clear historic estimates
-	resetQueue(inav.historic_x, &inav.historic_x_property);
-	resetQueue(inav.historic_y, &inav.historic_y_property);
-
-	// add new position for future use
-	inav.historic_xy_counter = 0;
-	pushToQueue(inav.position_base.x, inav.historic_x, &inav.historic_x_property);
-	pushToQueue(inav.position_base.y, inav.historic_y, &inav.historic_y_property);
-}
-
-// set_altitude - set base altitude estimate in cm
-void setAltitude( float new_altitude)
-{
-    inav.position_base.z = new_altitude;
-    inav.position_correction.z = 0;
-    inav.position.z = new_altitude; // _position = _position_base + _position_correction
-    resetQueue(inav.historic_z, &inav.historic_z_property);
-
-    inav.historic_z_counter = 0;
-    pushToQueue(inav.position_base.z, inav.historic_z, &inav.historic_z_property);
-}
 
 /**
  * @brief correct the inav with new gps updates
@@ -243,30 +244,150 @@ static void checkGPS(void)
 /**
  * @brief checks if the external position sensor is glitching
  */
-static int isExtPosGlitching(void)
+static int isCVGlitching(void)
+{
+// calculate time since last sane gps reading in ms
+	float sane_dt = (sens_cv.stamp - inav.last_good_gps_update) / 1000.0f;
+
+	float dx = sens_cv.position.x - inav.last_good_cv.x;
+	float dy = sens_cv.position.y - inav.last_good_cv.y;
+
+	float distance_cm = sqrt(dx*dx + dy*dy);
+//	debug("distance to last_good_lat is %f", distance_cm);
+
+	int all_ok = 1;
+
+	if(isnan(sens_cv.position.x) || isnan(sens_cv.position.y))
+		all_ok = 0;
+
+	if(isinf(sens_cv.position.x) || isinf(sens_cv.position.y))
+		all_ok = 0;
+
+	    // all ok if within a given hardcoded radius
+	if (distance_cm > GPS_RADIUS_CM)
+	{
+		all_ok = 0;
+	}
+
+	if(all_ok == 1)
+	{
+		inav.last_good_cv.x = sens_cv.position.x;
+		inav.last_good_cv.y = sens_cv.position.y;
+		inav.last_good_cv_update = sens_cv.stamp;
+	}
+	return (!all_ok);
+}
+
+
+/**
+ * @brief correct the inav with new gps updates
+ */
+static void correctWithCV(float dt)
+{
+	//discard samples if dt is too large
+	if(dt > 1.0f || dt <= 0.0f)
+		return;
+
+	x_cm = sens_cv.position.x;
+	y_cm = sens_cv.position.y;
+
+	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
+	int glitching_status = isCVGlitching();
+	if(glitching_status)
+	{
+		// failed sanity check so degrate position_error to 10% over 2 seconds (assumes 30hz update rate)
+		inav.position_error.x *= 0.9624f;
+		inav.position_error.y *= 0.9624f;
+	}
+	else
+	{
+		// if our internal glitching flag (from previous iteration) is true we have just recovered from a glitch
+		// reset the inertial nav position and velocity to gps values
+		if(inav.flag_cv_glitching == 1)
+		{
+			debug("position base %f; position correction is %f; position_error is %f",
+							inav.position_base.x, inav.position_correction.x, inav.position_error.x);
+			setPositionXY(x_cm,y_cm);
+			inav.position_error.x = 0.0f;
+			inav.position_error.y = 0.0f;
+		}
+		else
+		{
+			Vector3f historic_position_base;
+
+			if(inav.historic_x_property.is_full)
+			{
+				historic_position_base.x = popQueue(inav.historic_x, &inav.historic_x_property);
+				historic_position_base.y = popQueue(inav.historic_y, &inav.historic_y_property);
+			}
+			else
+			{
+				historic_position_base.x = inav.position_base.x;
+				historic_position_base.y = inav.position_base.y;
+			}
+
+//			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
+//							x_cm, inav.position_base.x, inav.position_correction.x);
+
+			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
+			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
+		}
+	}
+	inav.flag_cv_glitching = glitching_status;
+
+}
+
+/**
+ * @brief update navigation velocity and position based on GPS feedback if new available
+ */
+static void checkCV(void)
+{
+	uint32_t now = millis();
+
+	if( sens_cv.stamp > inav.cv_last)
+	{
+		float dt = (sens_cv.stamp - inav.cv_last)*0.001f;
+		inav.cv_last_update = now;
+		correctWithCV(dt);
+		inav.cv_last = sens_cv.stamp;
+	}
+	else
+	{
+		// if GPS updates stop arriving degrade position error to 10% over 2 seconds (assumes 30hz update rate)
+		if (now - inav.cv_last_update > AP_INTERTIALNAV_GPS_TIMEOUT_MS)
+		{
+			inav.position_error.x *= 0.9624f;
+			inav.position_error.y *= 0.9624f;
+		}
+	}
+}
+/**
+ * @brief checks if the external position sensor is glitching
+ */
+static int isBaroGlitching(void)
 {
 	// calculate time since last sane gps reading in ms
-	float sane_dt = (sens_ext_pos.stamp - inav.last_good_gps_update) / 1000.0f;
+	float sane_dt = (sens_baro.stamp - inav.last_good_gps_update) / 1000.0f;
 
-	float distance_cm = sens_ext_pos.position.z - inav.last_good_ext_pos.z;
+	float distance_cm = sens_baro.position.z - inav.last_good_baro.z;
 	debug("distance to last_good_lat is %f", distance_cm);
 
 	int all_ok = 1;
 //	q[2] = distance_cm;
 		// all ok if within a given hardcoded radius
 
-	if(isnan(sens_ext_pos.position.z))
+	if(isnan(sens_baro.position.z))
 		all_ok = 0;
 
-	if(isinf(sens_ext_pos.position.z))
+	if(isinf(sens_baro.position.z))
 		all_ok = 0;
 
-	if (fabs(distance_cm) > EXT_POS_RADIUS_CM)
+	if (fabs(distance_cm) > BARO_RADIUS_CM)
 	{
 		all_ok = 0;
 	}
 
-	if(sens_ext_pos.position.z == 0)
+	if(sens_baro.position.z == 0)
 	{
 		all_ok = 0;
 	}
@@ -283,30 +404,28 @@ static int isExtPosGlitching(void)
 
 	if(all_ok == 1)
 	{
-		inav.last_good_ext_pos.z = sens_ext_pos.position.z;
-		inav.last_good_ext_pos_update = sens_ext_pos.stamp;
+		inav.last_good_baro.z = sens_baro.position.z;
+		inav.last_good_baro_update = sens_baro.stamp;
 	}
 	return (!all_ok);
 }
 
+
 /**
  * @brief correct the inav with updates from the external navigation sensor(vision/px4flow)
  */
-static void correctWithExtPos(float dt)
+static void correctWithBaro(float dt)
 {
 	//discard samples if dt is too large
 	if(dt > 1.0f || dt <= 0.0f)
 		return;
 
-//	x_cm = sens_ext_pos.position.x*100;
-//	y_cm = sens_ext_pos.position.y*100;
-	float z = sens_ext_pos.position.z;
-
-//	debug("GPS lat is %d; GPS lng is %d;", sens_gps.lat, sens_gps.lng);
-//	debug("GPS x is %f; GPS y is %f; deltat is %f",x,y,dt);
+//	x_cm = sens_baro.position.x*100;
+//	y_cm = sens_baro.position.y*100;
+	float z = sens_baro.position.z;
 
 	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
-	int glitching_status = isExtPosGlitching();
+	int glitching_status = isBaroGlitching();
 	if(glitching_status)
 	{
 		// failed sanity check so degrate position_error to 10% over 2 seconds (assumes 10hz update rate)
@@ -318,9 +437,9 @@ static void correctWithExtPos(float dt)
 	{
 		// if our internal glitching flag (from previous iteration) is true we have just recovered from a glitch
 		// reset the inertial nav position and velocity to gps values
-		if(inav.flag_ext_pos_glitching == 1)
+		if(inav.flag_baro_glitching == 1)
 		{
-			debug("Z : ext_pos: %z pos base %f; pos_correction is %f; pos_error is %f",
+			debug("Z : baro: %z pos base %f; pos_correction is %f; pos_error is %f",
 							z, inav.position_base.z, inav.position_correction.z, inav.position_error.z);
 
 //			setPositionXY(x_cm,y_cm);
@@ -346,7 +465,7 @@ static void correctWithExtPos(float dt)
 			else
 				historic_position_base.z = inav.position_base.z;
 
-			debug("position from ext_pos is %f; historic_position_base is %f; position_correction is %f",
+			debug("position from baro is %f; historic_position_base is %f; position_correction is %f",
 							z, inav.position_base.z, inav.position_correction.z);
 
 //			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
@@ -354,31 +473,133 @@ static void correctWithExtPos(float dt)
 			inav.position_error.z = z - (historic_position_base.z + inav.position_correction.z);
 		}
 	}
-	inav.flag_ext_pos_glitching = glitching_status;
+	inav.flag_baro_glitching = glitching_status;
 
 }
-
 /**
  * @brief update navigation velocity and position based on EXternal Position feedback if new available
  */
-static void checkExtPos(void)
+static void checkBaro(void)
 {
 	uint32_t now = millis();
 
-	if( sens_ext_pos.stamp > inav.ext_pos_last)
+	if( sens_baro.stamp > inav.baro_last)
 	{
-		float dt = (sens_ext_pos.stamp - inav.ext_pos_last)*0.001f;
-		inav.ext_pos_last_update = now;
-		correctWithExtPos(dt);
-		inav.ext_pos_last = sens_ext_pos.stamp;
+		float dt = (sens_baro.stamp - inav.baro_last)*0.001f;
+		inav.baro_last_update = now;
+		correctWithBaro(dt);
+		inav.baro_last = sens_baro.stamp;
 	}
 	else
 	{
 		// if EXT POS updates stop arriving degrade position error to 10% over 2 seconds (assumes 100hz update rate)
-		if (now - inav.ext_pos_last_update > AP_INTERTIALNAV_GPS_TIMEOUT_MS)
+		if (now - inav.baro_last_update > AP_INTERTIALNAV_GPS_TIMEOUT_MS)
 		{
 //			inav.position_error.x *= 0.9886f;
 //			inav.position_error.y *= 0.9886f;
+			inav.position_error.z *= 0.9886f;
+		}
+	}
+}
+
+static int isSonarGlitching(void)
+{
+	// calculate time since last sane gps reading in ms
+	float sane_dt = (sens_sonar.stamp - inav.last_good_sonar_update) / 1000.0f;
+
+	float distance_cm = sens_sonar.depth - inav.last_good_sonar;
+	debug("distance to last_good_lat is %f", distance_cm);
+
+	int all_ok = 1;
+//	q[2] = distance_cm;
+		// all ok if within a given hardcoded radius
+
+	if(isnan(sens_sonar.depth))
+		all_ok = 0;
+
+	if(isinf(sens_sonar.depth))
+		all_ok = 0;
+
+	if (fabs(distance_cm) > SONAR_RADIUS_CM)
+	{
+		all_ok = 0;
+	}
+
+	if(sens_sonar.depth == 0)
+	{
+		all_ok = 0;
+	}
+
+	if(all_ok == 1)
+	{
+		inav.last_good_sonar = sens_sonar.depth;
+		inav.last_good_sonar_update = sens_sonar.stamp;
+	}
+	return (!all_ok);
+}
+
+static void correctWithSonar(float dt)
+{
+	//discard samples if dt is too large
+	if(dt > 1.0f || dt <= 0.0f)
+		return;
+
+	float z = sens_sonar.depth;
+
+	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
+	int glitching_status = isSonarGlitching();
+	if(glitching_status)
+	{
+		// failed sanity check so degrate position_error to 10% over 2 seconds (assumes 10hz update rate)
+		inav.position_error.z *= 0.89125f;
+	}
+	else
+	{
+		// if our internal glitching flag (from previous iteration) is true we have just recovered from a glitch
+		// reset the inertial nav position and velocity to gps values
+		if(inav.flag_sonar_glitching == 1)
+		{
+			debug("Z : sonar: %z pos base %f; pos_correction is %f; pos_error is %f",
+							z, inav.position_base.z, inav.position_correction.z, inav.position_error.z);
+
+			setAltitude(z);
+			inav.position_error.z = 0;
+		}
+		else
+		{
+			Vector3f historic_position_base;
+
+			if(inav.historic_z_property.is_full)
+				historic_position_base.z = popQueue(inav.historic_z, &inav.historic_z_property);
+			else
+				historic_position_base.z = inav.position_base.z;
+
+			debug("position from sonar is %f; historic_position_base is %f; position_correction is %f",
+							z, inav.position_base.z, inav.position_correction.z);
+
+			inav.position_error.z = z - (historic_position_base.z + inav.position_correction.z);
+		}
+	}
+	inav.flag_sonar_glitching = glitching_status;
+}
+
+
+static void checkSonar(void)
+{
+	uint32_t now = millis();
+
+	if( sens_sonar.stamp > inav.sonar_last)
+	{
+		float dt = (sens_sonar.stamp - inav.sonar_last)*0.001f;
+		inav.sonar_last_update = now;
+		correctWithSonar(dt);
+		inav.sonar_last = sens_sonar.stamp;
+	}
+	else
+	{
+		// if EXT POS updates stop arriving degrade position error to 10% over 2 seconds (assumes 100hz update rate)
+		if (now - inav.sonar_last_update > AP_INTERTIALNAV_GPS_TIMEOUT_MS)
+		{
 			inav.position_error.z *= 0.9886f;
 		}
 	}
@@ -438,16 +659,29 @@ void initializeAlt()
 	bool flag_EXT_POS_HOME_FOUND = 0;
 	while(!flag_EXT_POS_HOME_FOUND)
 	{
-		if(sens_ext_pos.stamp != 0)
+#if (USE_BARO_NOT_SONAR == 1)
+		if(sens_baro.stamp != 0)
 			flag_EXT_POS_HOME_FOUND = 1;
+#else
+		if(sens_sonar.stamp != 0)
+				flag_EXT_POS_HOME_FOUND = 1;
+#endif
 		delay(100);
 	}
 
-	inav.position_base.z = sens_ext_pos.position.z;
-	inav.last_good_ext_pos.z = sens_ext_pos.position.z;
-	inav.last_good_ext_pos_update = sens_ext_pos.stamp;
+#if (USE_BARO_NOT_SONAR == 1)
+	inav.position_base.z = sens_baro.position.z;
+	inav.last_good_baro.z = sens_baro.position.z;
+	inav.last_good_baro_update = sens_baro.stamp;
 	inav.position_correction.z = 0.0f;
-	inav.position.z = sens_ext_pos.position.z;				//set initial altitude to whatever value is reached
+	inav.position.z = sens_baro.position.z;				//set initial altitude to whatever value is reached
+#else
+	inav.position_base.z = sens_sonar.depth;
+	inav.last_good_baro.z = sens_sonar.depth;
+	inav.last_good_baro_update = sens_sonar.stamp;
+	inav.position_correction.z = 0.0f;
+	inav.position.z = sens_sonar.depth;				//set initial altitude to whatever value is reached
+#endif
 
 	inav.position_error.z = 0.0f;		//initial error is zero
 	inav.velocity.z = 0.0f;				//set initialize altitude to 0
@@ -481,6 +715,34 @@ void initINAV()
 	initializeHome();
 	//TODO UNNECESSARY initialize other variables
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
+	initializeAlt();
+
+}
+
+void resetINAV()
+{
+	// initialize the queues
+	inav.historic_xy_counter = 0;
+	inav.historic_z_counter = 0;
+	inav.historic_x_property.size = AP_HISTORIC_XY_SIZE;
+	inav.historic_y_property.size = AP_HISTORIC_XY_SIZE;
+	inav.historic_z_property.size = AP_HISTORIC_Z_SIZE;
+	resetQueue(inav.historic_x, &inav.historic_x_property);
+	resetQueue(inav.historic_y, &inav.historic_y_property);
+	resetQueue(inav.historic_z, &inav.historic_z_property);
+
+	//update gps time variables
+	inav.gps_last = 0;
+	inav.gps_last_update = 0;
+	initializeHome();
+
+	//initialize IMU
+	inav.last_good_imu = sens_imu.accel_calib;
+
+	//TODO UNNECESSARY initialize other variables
+	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
+	inav.sonar_last = 0;
+	inav.sonar_last_update = 0;
 	initializeAlt();
 
 }
@@ -523,10 +785,18 @@ void updateINAV(uint32_t del_t)
 
 	ang_vel[0] = dt;
 	// check if new gps readings have arrived and use them to correct position estimates
+#if (USE_GPS_NOT_CV == 1)
 	checkGPS();
+#else
+	checkCV();
+#endif
 
 	// check if new readings have arrives from the external position sensor on the OBC
-	checkExtPos();
+#if (USE_BARO_NOT_SONAR == 1)
+	checkBaro();
+#else
+	checkSonar();
+#endif
 
 	Vector3f accel_ef;
 
@@ -600,8 +870,6 @@ void updateINAV(uint32_t del_t)
 
 //	debug("velocity is %f, velocity increase is %f", inav.velocity.z, velocity_increase.z);
 
-	//TODO CHECK the working
-	// store 3rd order estimate (i.e. estimated vertical position) for future use
 	pushToQueue(inav.position_base.z, inav.historic_z, &inav.historic_z_property);
 
 	// store 3rd order estimate (i.e. horizontal position) for future use at 10hz

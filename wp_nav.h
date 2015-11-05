@@ -23,8 +23,8 @@
 #define STICK_DEADBAND							15
 #define THROTTLE_OUTPUT_MAX						1700
 #define THROTTLE_OUTPUT_MIN						1300
-#define RP_OUTPUT_MAX							1600
-#define RP_OUTPUT_MIN							1400
+#define RP_OUTPUT_MAX							1700
+#define RP_OUTPUT_MIN							1300
 #define YAW_OUTPUT_MAX							1800
 #define YAW_OUTPUT_MIN							1200
 #define DEGREEPS_TO_STICK						100		//TODO correct this on the basis of what is present in wp_nav

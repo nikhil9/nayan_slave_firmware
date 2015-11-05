@@ -42,8 +42,7 @@
 
 ///////////Constants defined by atulya ///////////
 #define MAX_LEAN_ANGLE							15	//in degrees
-#define POSCONTROL_MAX_ALTITUDE					1000		//TODO pxflow ultrasonic is said to work only upto 4m
-#define POSCONTROL_MIN_ALTITUDE					-1000	//TODO pxflow ultrasonic minimum is around 0.3-0.4m
+
 #define XY_MODE_POS_ONLY 						0       // position correction only (i.e. no velocity feed-forward)
 #define XY_MODE_POS_LIMITED_AND_VEL_FF			1	    // for loiter - rate-limiting the position correction, velocity feed-forward
 #define XY_MODE_POS_AND_VEL_FF					2		// for velocity controller - unlimied position correction, velocity feed-forward

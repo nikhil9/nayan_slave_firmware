@@ -47,8 +47,10 @@ Sensor_IMU sens_imu;
 uint32_t last_imu_stamp;
 Sensor_GPS sens_gps;
 uint32_t last_gps_stamp;
-Sensor_ExtPos sens_ext_pos;
-uint32_t last_ext_pos_stamp;
+Sensor_ExtPos sens_baro;
+uint32_t last_baro_stamp;
+Sensor_ExtPos sens_cv;
+Sensor_Depth sens_sonar;
 
 AHRS ahrs;
 Inertial_nav_data inav;
@@ -70,8 +72,6 @@ int main(void){
 
 	odroid_comm_init();
 
-	initINAV();
-
 	//intialize the position_controller
 	initializePosController();
 
@@ -79,6 +79,8 @@ int main(void){
 
 	//intialize the wp_nav
 	initializeWPNav();
+
+	initINAV();
 
 	while(TRUE){
 /**
@@ -122,7 +124,7 @@ int main(void){
 		if(count_arming == 100 && FLAG_ARMING == 0)
 		{
 			FLAG_ARMING = 1;
-			initINAV();						//need to reset the baro when arming
+			resetINAV();						//need to reset the baro when arming
 		}
 		else if( count_arming == 0)
 			FLAG_ARMING = 0;

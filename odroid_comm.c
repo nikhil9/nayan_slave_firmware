@@ -124,15 +124,27 @@ static void send_rc_in(void){
 
 static void send_local_position_ned(void)
 {
+#if (USE_BARO_NOT_SONAR == 1)
 	mavlink_msg_local_position_ned_send(
 			MAVLINK_COMM_0,
 			millis(),
 			x_cm,
 			y_cm,
-			sens_ext_pos.position.z,
+			sens_baro.position.z,
 			0,
 			0,
 			0);
+#else
+	mavlink_msg_local_position_ned_send(
+			MAVLINK_COMM_0,
+			millis(),
+			x_cm,
+			y_cm,
+			sens_sonar.depth,
+			0,
+			0,
+			0);
+#endif
 }
 
 //TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
@@ -238,7 +250,7 @@ static msg_t mavlinkSend(void *arg) {
 		  imu_cnt = 0;
 	  }
 
-//	  if(sim_state_cnt > 3)
+//	  if(sim_state_cnt > 3)				//TODO change the sending rates after the debugging stage
 //	  {
 		  send_sim_state();
 //		  sim_state_cnt = 0;
@@ -357,9 +369,24 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
     {
     	send_params();
-
     	break;
     }
+
+    /* When a request os made for a specific parameter */
+      case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
+      {
+    	  mavlink_param_request_read_t cmd;
+          mavlink_msg_param_request_read_decode(msg, &cmd);
+
+          /* local name buffer to enforce null-terminated string */
+          char name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN + 1];
+          strncpy(name, cmd.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
+          /* enforce null termination */
+          name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
+          /* attempt to find parameter, set and send it */
+          resendParamMavLink(name, cmd.param_index);
+          break;
+      }
 
     case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
     {
@@ -386,13 +413,24 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
     	//TODO replace this when switching back from GPS and baro based feedback to CV and PX4flow
-//    	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
-//    	sens_ext_pos.position.x = vision_position_inp.x;
-//    	sens_ext_pos.position.y = vision_position_inp.y;
-//    	sens_ext_pos.position.z = vision_position_inp.z;
-//    	sens_ext_pos.yaw = vision_position_inp.yaw;
-//    	sens_ext_pos.obc_stamp = vision_position_inp.usec;
-//    	sens_ext_pos.stamp = millis();
+    	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
+    	sens_cv.position.x = 100*vision_position_inp.x;
+    	sens_cv.position.y = -100*vision_position_inp.y;
+    	sens_cv.position.z = -100*vision_position_inp.z;
+    	sens_cv.yaw = vision_position_inp.yaw;
+    	sens_cv.obc_stamp = vision_position_inp.usec;
+    	sens_cv.stamp = millis();
+
+#if (USE_GPS_NOT_CV == 0)
+    	ahrs.attitude.z = vision_position_inp.yaw;
+#endif
+
+    	if(sens_sonar.depth != vision_position_inp.z)
+    	{
+    		sens_sonar.obc_stamp = vision_position_inp.usec;
+			sens_sonar.stamp = sens_cv.stamp;
+			sens_sonar.depth = -100*vision_position_inp.z;
+    	}
 
     	break;
     }

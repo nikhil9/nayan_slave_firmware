@@ -8,7 +8,6 @@
 
 void initializePosController()
 {
-	//TODO initialize these constants
 	pos_control._p_pos_z.kP = ALT_HOLD_P;
 	pos_control._p_vel_z.kP = VEL_Z_P;
 	initializePID(&pos_control._pid_accel_z, ACCEL_Z_P, ACCEL_Z_I, ACCEL_Z_D, ACCEL_Z_IMAX, ACCEL_Z_FILT_HZ);
@@ -55,8 +54,8 @@ void initializePosController()
 	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;
 	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
 
-	pos_control.alt_max = POSCONTROL_MAX_ALTITUDE;
-	pos_control.alt_min = POSCONTROL_MIN_ALTITUDE;
+	pos_control.alt_max = POSTARGET_MAX_ALTITUDE;
+	pos_control.alt_min = POSTARGET_MIN_ALTITUDE;
 	pos_control.distance_to_target = 0.0f;
 	pos_control.vel_error_filter.cutoff_freq = POSCONTROL_VEL_ERROR_CUTOFF_FREQ;
 	pos_control.accel_target_jerk_limited.x = 0.0f;
@@ -411,7 +410,6 @@ static void accelToThrottle(float accel_target_z)
 	float z_accel_meas;         // actual acceleration
 	float p,i,d;              // used to capture pid values for logging
 
-	// Calculate Earth Frame Z acceleration TODO check if this acceleration term is correct
 	z_accel_meas = -(ahrs.accel_ef.z*100 + GRAVITY_CMSS);
 
 	// reset target altitude if this controller has just been engaged
@@ -630,10 +628,12 @@ void setAttitude(float roll, float pitch, float yaw_rate)
 
 	ic_rc_or_data.ic_rc.rc1 = pos_control.roll_out;
 	ic_rc_or_data.ic_rc.rc2 = pos_control.pitch_out;
+	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
+
+	//USE THIS IF YOU WANT TO DIRECTLY MAP RC INPUTS TO OVERRIDES
 //	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
 //	ic_rc_or_data.ic_rc.rc2 = rc_in[1];
-	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
-//	ic_rc_or_data.ic_rc.rc1 = ;
+//	ic_rc_or_data.ic_rc.rc4 = rc_in[3];
 }
 
 void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
@@ -644,7 +644,6 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 //	ang_vel[0] = throttle_in;
 	throttle_in = applyLPF(&pos_control.throttle_in_filter, throttle_in, POSCONTROL_DT_100HZ);
 	ang_vel[1] = throttle_in;
-//	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
 
 	float cos_tilt = ahrs.cos_theta * ahrs.cos_phi;
 	float boost_factor = 1.0f/constrain_float(cos_tilt, 0.5f, 1.0f);
@@ -661,4 +660,7 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 	pos_control.throttle_out = constrain_int(throttle_out, THROTTLE_OUTPUT_MIN, THROTTLE_OUTPUT_MAX);
 	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;
 //	debug("sending out throttle %d", pos_control.throttle_out);
+
+	//USE THIS IF YOU WANT TO DIRECTLY MAP RC INPUTS TO OVERRIDES
+	//	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
 }

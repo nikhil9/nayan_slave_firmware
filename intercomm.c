@@ -96,7 +96,9 @@ void update_ic_data(void){
 	ahrs.stamp = stamp;
 	ahrs.attitude.x = ic_imu_data.ic_imu.roll;
 	ahrs.attitude.y = ic_imu_data.ic_imu.pitch;
+#if (USE_GPS_NOT_CV == 1)
 	ahrs.attitude.z = ic_imu_data.ic_imu.yaw;
+#endif
 
 	Vector3f _position_gps;
 	_position_gps.x = ic_imu_data.ic_imu.lat;
@@ -112,8 +114,8 @@ void update_ic_data(void){
 		sens_gps.lng = (int32_t)(_position_gps.y);
 		sens_gps.alt = _position_gps.z;
 
-		sens_ext_pos.stamp = stamp;
-		sens_ext_pos.position.z = _position_gps.z;
+		sens_baro.stamp = stamp;
+		sens_baro.position.z = _position_gps.z;
 	}
 
 	velocity.x = ic_imu_data.ic_imu.vx;

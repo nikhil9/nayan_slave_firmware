@@ -53,6 +53,13 @@ typedef struct
 	Vector3f position;
 	float yaw;
 }Sensor_ExtPos;
+
+typedef struct
+{
+	uint32_t stamp;
+	uint64_t obc_stamp;
+	float depth;
+}Sensor_Depth;
 /**
  * @brief stores the current attitude and the trigonometric values for future use
  */
@@ -74,7 +81,9 @@ typedef struct
 
 extern Sensor_IMU sens_imu; /**< struct holding current imu variables #sens_imu.*/
 extern Sensor_GPS sens_gps;
-extern Sensor_ExtPos sens_ext_pos;
+extern Sensor_ExtPos sens_baro;
+extern Sensor_ExtPos sens_cv;
+extern Sensor_Depth sens_sonar;
 
 extern AHRS ahrs;
 extern Inertial_nav_data inav; /**< data structure storing the inertial navigation crucial data #inav. */

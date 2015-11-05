@@ -31,6 +31,8 @@ extern const char accel_z_d[16];
 extern const char accel_z_imax[16];
 extern const char accel_z_filt_hz[16];
 
+extern const char throttle_hover[16];
+
 extern const char sysid_thismav_index;
 extern const char sysid_sw_type_index;
 extern const char sysid_mygcs_index;
@@ -51,11 +53,267 @@ extern const uint8_t accel_z_d_index;
 extern const uint8_t accel_z_imax_index;
 extern const uint8_t accel_z_filt_hz_index;
 
-#define PARAM_COUNT 16				//total number of parameters to be sent
+extern const uint8_t throttle_hover_index;
+
+#define PARAM_COUNT 17				//total number of parameters to be sent
 
 //IF YOU WANT TO DECLARE FWupdateParamMavLink and FWparamQSend in the .c file then you will have to make comm_ch_send static inside mavlink_helpers.h
 //currently only one instance of the mavlink _helpers is required in the odroid_comm.c file
 //the functions could also have been declared inside the odroid_comm_c but if the length of parameters increases then the code can get cluttered
+
+void resendParamMavLink(char _name[17], uint8_t param_id)
+{
+	if(strcmp(_name, sysid_thismav) == 0 || sysid_thismav_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 sysid_thismav,
+				 1, 			//param value
+				 MAVLINK_TYPE_UINT8_T,	//param type
+				 PARAM_COUNT,
+				 sysid_thismav_index);
+	}
+
+	if(strcmp(_name, sysid_sw_type) == 0 || sysid_sw_type_index == param_id)
+	{
+		palSetPad(GPIOC, 12);
+		chThdSleepMilliseconds(2);
+		palClearPad(GPIOC, 12);
+
+		mavlink_msg_param_value_send(
+			 MAVLINK_COMM_0,
+			 sysid_sw_type,
+			 10, 			//param value
+			 MAVLINK_TYPE_UINT8_T,	//param type
+			 PARAM_COUNT,
+			 sysid_sw_type_index);
+	}
+	if(strcmp(_name, sysid_mygcs) == 0 || sysid_mygcs_index == param_id)
+	{
+		palSetPad(GPIOC, 12);
+		chThdSleepMilliseconds(2);
+		palClearPad(GPIOC, 12);
+
+		mavlink_msg_param_value_send(
+			 MAVLINK_COMM_0,
+			 sysid_mygcs,
+			 255, 			//param value
+			 MAVLINK_TYPE_UINT8_T,	//param type
+			 PARAM_COUNT,
+			 sysid_mygcs_index);
+	}
+
+	if(strcmp(_name, inav_tc_xy) == 0 || inav_tc_xy_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 inav_tc_xy,
+				 inav.time_constant_xy, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 inav_tc_xy_index);
+	}
+	if(strcmp(_name, inav_tc_z) == 0 || inav_tc_z_index == param_id)
+	{
+		palSetPad(GPIOC, 12);
+		chThdSleepMilliseconds(2);
+		palClearPad(GPIOC, 12);
+
+		mavlink_msg_param_value_send(
+			 MAVLINK_COMM_0,
+			 inav_tc_z,
+			 inav.time_constant_z, 			//param value
+			 MAVLINK_TYPE_FLOAT,	//param type
+			 PARAM_COUNT,
+			 inav_tc_z_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, pos_xy_p) == 0 || pos_xy_p_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 pos_xy_p,
+				 pos_control._p_pos_xy.kP, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 pos_xy_p_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, vel_xy_p) == 0 || vel_xy_p_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 vel_xy_p,
+				 pos_control._pi_vel_xy.kP, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 vel_xy_p_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, vel_xy_i) == 0 || vel_xy_i_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 vel_xy_i,
+				 pos_control._pi_vel_xy.kI, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 vel_xy_i_index);		//_queued_parameter_index
+	  }
+
+	if(strcmp(_name, vel_xy_imax) == 0 || vel_xy_imax_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 vel_xy_imax,
+				 pos_control._pi_vel_xy.Imax, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 vel_xy_imax_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, pos_z_p) == 0 || pos_z_p_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 pos_z_p,
+				 pos_control._p_pos_z.kP, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 pos_z_p_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, vel_z_p) == 0 || vel_z_p_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 vel_z_p,
+				 pos_control._p_vel_z.kP, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 vel_z_p_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, accel_z_p) == 0 ||  accel_z_p_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 accel_z_p,
+				 pos_control._pid_accel_z.kP, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 accel_z_p_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, accel_z_i) == 0 || accel_z_i_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 accel_z_i,
+				 pos_control._pid_accel_z.kI, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 accel_z_i_index);		//_queued_parameter_index
+	}
+	if(strcmp(_name, accel_z_d) == 0 || accel_z_d_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 accel_z_d,
+				 pos_control._pid_accel_z.kD, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 accel_z_d_index);		//_queued_parameter_index
+	}
+	if(strcmp(_name, accel_z_imax) == 0 || accel_z_imax_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 accel_z_imax,
+				 pos_control._pid_accel_z.Imax, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 accel_z_imax_index);		//_queued_parameter_index
+	}
+
+	if(strcmp(_name, accel_z_filt_hz) == 0 || accel_z_filt_hz_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 accel_z_filt_hz,
+				 pos_control._pid_accel_z.filt_hz, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 accel_z_filt_hz_index);		//_queued_parameter_index
+	}
+	if(strcmp(_name, throttle_hover) == 0 || throttle_hover_index == param_id)
+	{
+		 palSetPad(GPIOC, 12);
+		 chThdSleepMilliseconds(2);
+		 palClearPad(GPIOC, 12);
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 throttle_hover,
+				 pos_control.throttle_hover, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,
+				 throttle_hover_index);		//_queued_parameter_index
+	}
+
+}
 
 void FWupdateParamMavLink(char _name[17], float _paramValue){
 
@@ -310,6 +568,24 @@ void FWupdateParamMavLink(char _name[17], float _paramValue){
 				 PARAM_COUNT,
 				 accel_z_filt_hz_index);		//_queued_parameter_index
 	  }
+	if(strcmp(_name, throttle_hover) == 0)
+	{
+		if(_paramValue > 1400 && _paramValue < 1600)
+			pos_control.throttle_hover = _paramValue;
+
+		palSetPad(GPIOC, 12);
+		chThdSleepMilliseconds(2);
+		palClearPad(GPIOC, 12);
+
+		mavlink_msg_param_value_send(
+			 MAVLINK_COMM_0,
+			 throttle_hover,
+			 pos_control.throttle_hover, 			//param value
+			 MAVLINK_TYPE_FLOAT,	//param type
+			 PARAM_COUNT,
+			 throttle_hover_index);		//_queued_parameter_index
+	}
+
 
 }
 
@@ -419,6 +695,14 @@ void FWparamQSend(void){
 				 MAVLINK_TYPE_FLOAT,	//param type
 				 PARAM_COUNT,		//_queued_parameter_count
 				 accel_z_filt_hz_index);		//_queued_parameter_index
+
+		 mavlink_msg_param_value_send(
+				 MAVLINK_COMM_0,
+				 throttle_hover,
+				 pos_control.throttle_hover, 			//param value
+				 MAVLINK_TYPE_FLOAT,	//param type
+				 PARAM_COUNT,		//_queued_parameter_count
+				 throttle_hover_index);		//_queued_parameter_index
 
 }
 

@@ -24,21 +24,49 @@
 
 #define INERTIAL_NAV_DELTAT_MAX 		0.1
 #define AP_INTERTIALNAV_TC_XY   		2.5f // default time constant for complementary filter's X & Y axis
-#define AP_INTERTIALNAV_TC_Z    		2.5f // default time constant for complementary filter's Z axis
+#define AP_INTERTIALNAV_TC_Z    		1.0f // default time constant for complementary filter's Z axis
 
 // #defines to control how often historical accel based positions are saved
 // so they can later be compared to laggy gps readings
-#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   10
-#define AP_HISTORIC_XY_SIZE							5
-#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
 #define AP_INTERTIALNAV_GPS_TIMEOUT_MS              300     // timeout after which position error from GPS will fall to zero
 
-#define AP_HISTORIC_Z_SIZE							15		// assuming a 150 ms delay for the ultrasonic data if the AHRS is called at 100Hz
+#define COUNT_Z_DELAY_BARO							15
+#define COUNT_Z_DELAY_SONAR							20
+		// assuming a 150 ms delay for the baro data if the AHRS is called at 100Hz
 #define GPS_RADIUS_CM								400
-#define EXT_POS_RADIUS_CM							250
+#define BARO_RADIUS_CM								250
+#define SONAR_RADIUS_CM								250
+#define CV_RADIUS_CM								400
 #define MAX_ACCEL_CHANGE							8		// 80000cmss * 0.01
 #define MIN_ACCEL_MEASURED							1
 #define MAX_BODY_ACCEL								1000	//10mss
+
+#define USE_BARO_NOT_SONAR							0		//0 for sonar 1 for baro
+#define USE_GPS_NOT_CV								0		//0 for cv 1 for GPS
+
+#if (USE_BARO_NOT_SONAR == 1)
+	#define AP_HISTORIC_Z_SIZE							COUNT_Z_DELAY_BARO
+#else
+	#define AP_HISTORIC_Z_SIZE							COUNT_Z_DELAY_SONAR
+#endif
+
+#if (USE_GPS_NOT_CV == 1)
+	#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   10
+	#define AP_HISTORIC_XY_SIZE							5
+	#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
+#else
+	#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   1
+	#define AP_HISTORIC_XY_SIZE							3
+	#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
+#endif
+
+#if (USE_BARO_NOT_SONAR == 1)
+	#define POSTARGET_MAX_ALTITUDE					1000
+	#define POSTARGET_MIN_ALTITUDE					-1000
+#else
+	#define POSTARGET_MAX_ALTITUDE					400
+	#define POSTARGET_MIN_ALTITUDE					40
+#endif
 
 /**
  * @brief implements basic variables required for inertial navigation
@@ -63,11 +91,23 @@ typedef struct
 	int32_t last_good_lng;
 	uint32_t last_good_gps_update;
 
-	uint32_t ext_pos_last_update;
-	uint32_t ext_pos_last;
-	uint8_t flag_ext_pos_glitching;
-	Vector3f last_good_ext_pos;
-	uint32_t last_good_ext_pos_update;
+	uint32_t baro_last_update;
+	uint32_t baro_last;
+	uint8_t flag_baro_glitching;
+	Vector3f last_good_baro;
+	uint32_t last_good_baro_update;
+
+	uint32_t sonar_last_update;
+	uint32_t sonar_last;
+	uint8_t flag_sonar_glitching;
+	float last_good_sonar;
+	uint32_t last_good_sonar_update;
+
+	uint32_t cv_last_update;
+	uint32_t cv_last;
+	uint8_t flag_cv_glitching;
+	Vector3f last_good_cv;
+	uint32_t last_good_cv_update;
 
 	Vector3f last_good_imu;
 	uint32_t last_good_imu_update;
@@ -100,6 +140,8 @@ void updateINAV(uint32_t del_t);
  */
 void initINAV(void);
 
+void resetINAV(void);
+
 /**
  * @brief update the variables of the AHRS on the basis of new imu readings
  */
@@ -111,7 +153,6 @@ void updateAHRS(void);
 void initializeHome(void);
 
 void initializeAlt(void);
-
 /**
  * @brief sets the position variables to home
  */
