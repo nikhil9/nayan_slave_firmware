@@ -128,8 +128,8 @@ static void send_local_position_ned(void)
 	mavlink_msg_local_position_ned_send(
 			MAVLINK_COMM_0,
 			millis(),
-			x_cm,
-			y_cm,
+			local_x_cm,
+			local_y_cm,
 			sens_baro.position.z,
 			0,
 			0,
@@ -138,8 +138,8 @@ static void send_local_position_ned(void)
 	mavlink_msg_local_position_ned_send(
 			MAVLINK_COMM_0,
 			millis(),
-			x_cm,
-			y_cm,
+			local_x_cm,
+			sens_cv.position.y,
 			sens_sonar.depth,
 			0,
 			0,
@@ -147,18 +147,40 @@ static void send_local_position_ned(void)
 #endif
 }
 
-//TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
+////TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
+//static void send_hil_state(void)
+//{
+//	mavlink_msg_hil_state_send(
+//			MAVLINK_COMM_0,
+//			millis(),
+//			pos_control.pos_desired.x,
+//			pos_control.pos_desired.y,
+//			pos_control.pos_desired.z,
+//			pos_control.vel_desired.x,
+//			pos_control.vel_desired.y,
+//			pos_control.vel_desired.z,
+//			pos_control.pos_target.x*10,
+//			pos_control.pos_target.y*10,
+//			pos_control.pos_target.z*10,
+//			pos_control.vel_target.x*10,
+//			pos_control.vel_target.y*10,
+//			pos_control.vel_target.z*10,
+//			pos_control.accel_target_filter_x.output*10,
+//			pos_control.accel_target_filter_y.output*10,
+//			pos_control.accel_target.z*10
+//			);
+//}
 static void send_hil_state(void)
 {
 	mavlink_msg_hil_state_send(
 			MAVLINK_COMM_0,
 			millis(),
-			pos_control.pos_desired.x,
-			pos_control.pos_desired.y,
-			pos_control.pos_desired.z,
-			pos_control.vel_desired.x,
-			pos_control.vel_desired.y,
-			pos_control.vel_desired.z,
+			sens_imu.accel_calib.x,
+			sens_imu.accel_calib.y,
+			sens_imu.accel_calib.z,
+			ahrs.attitude.x,
+			ahrs.attitude.y,
+			ahrs.attitude.z,
 			pos_control.pos_target.x*10,
 			pos_control.pos_target.y*10,
 			pos_control.pos_target.z*10,
@@ -176,22 +198,31 @@ static void send_hil_state(void)
  */
 static void send_sim_state(void)
 {
+#if(USE_BARO_NOT_SONAR == 0)
+	float alt = sens_sonar.depth;
+#else
+	float alt = sens_baro.position.z;
+#endif
 	mavlink_msg_sim_state_send(
 			MAVLINK_COMM_0,
 //			pos_control.pos_target.x,
 //			pos_control.pos_error.x,
 //			pos_control.vel_target.x,
 //			pos_control.accel_target_jerk_limited.x,
-			q[0],q[1],q[2],q[3],
+//			q[0],q[1],q[2],q[3],
 			ic_rc_or_data.ic_rc.rc1,
 			ic_rc_or_data.ic_rc.rc2,
 			ic_rc_or_data.ic_rc.rc3,
+			ic_rc_or_data.ic_rc.rc4,
+			local_x_cm,
+			local_y_cm,
+			alt,
 			ahrs.accel_ef.x*100,
 			ahrs.accel_ef.y*100,
 			-(ahrs.accel_ef.z*100 + GRAVITY_CMSS),
-			ang_vel[0],
-			ic_rc_or_data.ic_rc.rc4,
-			wp_nav._pilot_desired_yaw_rate,
+			velocity.x,
+			velocity.y,
+			velocity.z,
 			inav.position.x,
 			inav.position.y,
 			inav.position.z,
@@ -230,8 +261,10 @@ static msg_t mavlinkSend(void *arg) {
 		  hbt_cnt = 0;
 	  }
 
-	  if(gps_cnt > 3){
+#if(DEBUG_MODE == 1)
 
+	  if(gps_cnt > 3)
+	  {
 		  if(local_cnt == 0)
 			  send_gps();
 		  if(local_cnt == 1)
@@ -242,6 +275,7 @@ static msg_t mavlinkSend(void *arg) {
 		  local_cnt = (local_cnt + 1)%3;
 		  gps_cnt = 0;
 	  }
+
 
 	  if(imu_cnt > 3)
 	  {
@@ -261,13 +295,27 @@ static msg_t mavlinkSend(void *arg) {
 		  send_hil_state();
 //		  hil_cnt = 0;
 //	  }
+		  gps_cnt++;
+		  hil_cnt++;
+		  imu_cnt++;
+		  sim_state_cnt++;
+#else
+	  //sending out imu data @ 200Hz
+	  send_scaled_imu();
+	  send_attitude();
+
+	  //sending out data @ 50Hz
+	  if(gps_cnt > 3)
+	  {
+		  send_gps();
+		  send_rc_in();
+		  gps_cnt = 0;
+	  }
+	  gps_cnt++;
+#endif
 
 	  chThdSleep(US2ST(4500));
 	  hbt_cnt++;
-	  gps_cnt++;
-	  sim_state_cnt++;
-	  hil_cnt++;
-	  imu_cnt++;
 
   }
   return 0;
@@ -413,24 +461,30 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
     	//TODO replace this when switching back from GPS and baro based feedback to CV and PX4flow
+    	  /*TODO BUG in UAS
+    	   * Transformation in Eigen/Geometry near mat.eulerAngles it has been stated
+    	   * the returned angles are in the range [0:pi]x[-pi:pi]x[-pi:pi]
+    	   * In quaternion_to_rpy() present in the file uas_quaternion_utils.cpp in the folder
+    	   * mavros/mavros/src/lib the function mat.eulerAngles has been used to obtain YPR in
+    	   * the order 2,1,0
+    	   * So the yaw obtained is in the range is in [0 pi] which causes a bug
+    	   * Hence the yaw obtained inside the FCU code is in range of [0 pi] which is wrong coz
+    	   * -pi/2 was represented as pi/2
+    	   * So now the yaw angle is sent as roll angle and similarly in FCU the cv yaw is assigned
+    	   * to the roll angle
+    	   */
+
     	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
     	sens_cv.position.x = 100*vision_position_inp.x;
-    	sens_cv.position.y = -100*vision_position_inp.y;
+    	sens_cv.position.y = 100*vision_position_inp.y;
     	sens_cv.position.z = -100*vision_position_inp.z;
-    	sens_cv.yaw = vision_position_inp.yaw;
+    	sens_cv.yaw = -vision_position_inp.roll;
     	sens_cv.obc_stamp = vision_position_inp.usec;
     	sens_cv.stamp = millis();
 
-#if (USE_GPS_NOT_CV == 0)
-    	ahrs.attitude.z = vision_position_inp.yaw;
-#endif
-
-    	if(sens_sonar.depth != vision_position_inp.z)
-    	{
-    		sens_sonar.obc_stamp = vision_position_inp.usec;
-			sens_sonar.stamp = sens_cv.stamp;
-			sens_sonar.depth = -100*vision_position_inp.z;
-    	}
+		sens_sonar.obc_stamp = vision_position_inp.usec;
+		sens_sonar.stamp = sens_cv.stamp;
+		sens_sonar.depth = -100*vision_position_inp.z;
 
     	break;
     }
@@ -440,7 +494,6 @@ void handleMessage(mavlink_message_t* msg)
 
     }
 }
-
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!

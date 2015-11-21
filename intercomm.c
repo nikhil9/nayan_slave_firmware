@@ -37,7 +37,7 @@ static void correctIMUTemp(void)
 	sens_imu.gyro_calib.y = -sens_imu.gyro_calib.x;
 	sens_imu.gyro_calib.x = -tmp;
 
-	//on 24th OCT the rc channel 6 and 7 were switched hence take care of them too
+	//TODO on 24th OCT the rc channel 6 and 7 were switched hence take care of them too
 
 }
 
@@ -93,19 +93,16 @@ void update_ic_data(void){
 	sens_imu.gyro_calib.y = ic_imu_data.ic_imu.gy;
 	sens_imu.gyro_calib.z = ic_imu_data.ic_imu.gz;
 
-	ahrs.stamp = stamp;
-	ahrs.attitude.x = ic_imu_data.ic_imu.roll;
-	ahrs.attitude.y = ic_imu_data.ic_imu.pitch;
-#if (USE_GPS_NOT_CV == 1)
-	ahrs.attitude.z = ic_imu_data.ic_imu.yaw;
-#endif
+	sens_imu.attitude.x = ic_imu_data.ic_imu.roll;
+	sens_imu.attitude.y = ic_imu_data.ic_imu.pitch;
+	sens_imu.attitude.z = ic_imu_data.ic_imu.yaw;
 
 	Vector3f _position_gps;
 	_position_gps.x = ic_imu_data.ic_imu.lat;
 	_position_gps.y = ic_imu_data.ic_imu.lng;
 	_position_gps.z = ic_imu_data.ic_imu.alt;
 
-	correctIMUTemp();
+	correctIMUTemp();	//TODO remove this ultimately(change required in LLP)
 
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{

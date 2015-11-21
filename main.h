@@ -29,6 +29,7 @@ typedef struct
 	uint32_t stamp; /**> timestamp of the instant data was obtained #stamp.*/
 	Vector3f accel_calib; /**> acceleration as measured by the accelerometer and calibrated #accel_calib.*/
 	Vector3f gyro_calib; /**> angular velocity as measured in the body frame by imu #angular_velocity.*/
+	Vector3f attitude; /**> attitude as measured in the body frame by imu #angular_velocity.*/
 }Sensor_IMU;
 
 
@@ -98,7 +99,7 @@ extern float q[4];
 extern float ang_vel[3];
 
 //TODO remove the temp variables after use
-extern float x_cm;
-extern float y_cm;
+extern float local_x_cm;
+extern float local_y_cm;
 
 #endif /* MAIN_H_ */

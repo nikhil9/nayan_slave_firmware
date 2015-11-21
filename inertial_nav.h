@@ -41,8 +41,11 @@
 #define MIN_ACCEL_MEASURED							1
 #define MAX_BODY_ACCEL								1000	//10mss
 
+//============CONTROL VARIABLES FOR DIFFERENT ACTIONS==============
 #define USE_BARO_NOT_SONAR							0		//0 for sonar 1 for baro
 #define USE_GPS_NOT_CV								0		//0 for cv 1 for GPS
+#define DEBUG_MODE									1		//0 for normal operation 1 for debugging mode
+//=================================================================
 
 #if (USE_BARO_NOT_SONAR == 1)
 	#define AP_HISTORIC_Z_SIZE							COUNT_Z_DELAY_BARO

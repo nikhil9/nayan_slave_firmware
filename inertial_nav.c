@@ -23,6 +23,16 @@ int isIMUGlitching(void)
 {
 	int all_ok = 1;
 
+	if(isnan(ahrs.attitude.x)||isnan(ahrs.attitude.y)||isnan(ahrs.attitude.z))
+		all_ok = 0;
+
+	if(isinf(ahrs.attitude.x)||isinf(ahrs.attitude.y)||isinf(ahrs.attitude.z))
+		all_ok = 0;
+
+	//assuming that the maximum attitude angles is 10 rad
+	if((fabs(ahrs.attitude.x)>10)||(fabs(ahrs.attitude.y)>10)||(fabs(ahrs.attitude.z)>10))
+		all_ok = 0;
+
 	if(isnan(sens_imu.accel_calib.x)||isnan(sens_imu.accel_calib.y)||isnan(sens_imu.accel_calib.z))
 		all_ok = 0;
 
@@ -57,6 +67,15 @@ int isIMUGlitching(void)
 
 void updateAHRS(void)
 {
+	ahrs.stamp = sens_imu.stamp;
+	ahrs.attitude.x = sens_imu.attitude.x;
+	ahrs.attitude.y = sens_imu.attitude.y;
+#if (USE_GPS_NOT_CV == 1)
+		ahrs.attitude.z = sens_imu.attitude.z;
+#else
+    	ahrs.attitude.z = sens_cv.yaw;
+#endif
+
 
 	ahrs.cos_phi = cosf(ahrs.attitude.x);
 	ahrs.sin_phi = sinf(ahrs.attitude.x);
@@ -111,7 +130,6 @@ void setAltitude( float new_altitude)
 
 /**
  * @brief returns whether the GPS is having any glitch
- * TODO
  */
 
 static int isGPSGlitching(void)
@@ -165,8 +183,8 @@ static void correctWithGPS(float dt)
 	if(dt > 1.0f || dt <= 0.0f)
 		return;
 
-	x_cm = (sens_gps.lat - ahrs.lat_home) * LATLON_TO_CM;
-	y_cm = (sens_gps.lng - ahrs.lng_home) * inav.lon_to_cm_scaling;
+	local_x_cm = (sens_gps.lat - ahrs.lat_home) * LATLON_TO_CM;
+	local_y_cm = (sens_gps.lng - ahrs.lng_home) * inav.lon_to_cm_scaling;
 
 //	debug("GPS lat is %d; GPS lng is %d;", sens_gps.lat, sens_gps.lng);
 //	debug("GPS x is %f; GPS y is %f; deltat is %f",x,y,dt);
@@ -187,7 +205,7 @@ static void correctWithGPS(float dt)
 		{
 			debug("position base %f; position correction is %f; position_error is %f",
 							inav.position_base.x, inav.position_correction.x, inav.position_error.x);
-			setPositionXY(x_cm,y_cm);
+			setPositionXY(local_x_cm,local_y_cm);
 			inav.position_error.x = 0.0f;
 			inav.position_error.y = 0.0f;
 		}
@@ -207,10 +225,10 @@ static void correctWithGPS(float dt)
 			}
 
 //			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
-//							x_cm, inav.position_base.x, inav.position_correction.x);
+//							local_x_cm, inav.position_base.x, inav.position_correction.x);
 
-			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
-			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
+			inav.position_error.x = local_x_cm - (historic_position_base.x + inav.position_correction.x);
+			inav.position_error.y = local_y_cm - (historic_position_base.y + inav.position_correction.y);
 		}
 	}
 	inav.flag_gps_glitching = glitching_status;
@@ -288,8 +306,8 @@ static void correctWithCV(float dt)
 	if(dt > 1.0f || dt <= 0.0f)
 		return;
 
-	x_cm = sens_cv.position.x;
-	y_cm = sens_cv.position.y;
+	local_x_cm = sens_cv.position.x;
+	local_y_cm = sens_cv.position.y;
 
 	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
 	int glitching_status = isCVGlitching();
@@ -307,7 +325,7 @@ static void correctWithCV(float dt)
 		{
 			debug("position base %f; position correction is %f; position_error is %f",
 							inav.position_base.x, inav.position_correction.x, inav.position_error.x);
-			setPositionXY(x_cm,y_cm);
+			setPositionXY(local_x_cm,local_y_cm);
 			inav.position_error.x = 0.0f;
 			inav.position_error.y = 0.0f;
 		}
@@ -327,10 +345,10 @@ static void correctWithCV(float dt)
 			}
 
 //			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
-//							x_cm, inav.position_base.x, inav.position_correction.x);
+//							local_x_cm, inav.position_base.x, inav.position_correction.x);
 
-			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
-			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
+			inav.position_error.x = local_x_cm - (historic_position_base.x + inav.position_correction.x);
+			inav.position_error.y = local_y_cm - (historic_position_base.y + inav.position_correction.y);
 		}
 	}
 	inav.flag_cv_glitching = glitching_status;
@@ -370,7 +388,7 @@ static int isBaroGlitching(void)
 	float sane_dt = (sens_baro.stamp - inav.last_good_gps_update) / 1000.0f;
 
 	float distance_cm = sens_baro.position.z - inav.last_good_baro.z;
-	debug("distance to last_good_lat is %f", distance_cm);
+//	debug("distance to last_good_baro is %f", distance_cm);
 
 	int all_ok = 1;
 //	q[2] = distance_cm;
@@ -420,8 +438,8 @@ static void correctWithBaro(float dt)
 	if(dt > 1.0f || dt <= 0.0f)
 		return;
 
-//	x_cm = sens_baro.position.x*100;
-//	y_cm = sens_baro.position.y*100;
+//	local_x_cm = sens_baro.position.x*100;
+//	local_y_cm = sens_baro.position.y*100;
 	float z = sens_baro.position.z;
 
 	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
@@ -442,7 +460,7 @@ static void correctWithBaro(float dt)
 			debug("Z : baro: %z pos base %f; pos_correction is %f; pos_error is %f",
 							z, inav.position_base.z, inav.position_correction.z, inav.position_error.z);
 
-//			setPositionXY(x_cm,y_cm);
+//			setPositionXY(local_x_cm,local_y_cm);
 			setAltitude(z);
 			inav.position_error.z = 0;
 		}
@@ -468,8 +486,8 @@ static void correctWithBaro(float dt)
 			debug("position from baro is %f; historic_position_base is %f; position_correction is %f",
 							z, inav.position_base.z, inav.position_correction.z);
 
-//			inav.position_error.x = x_cm - (historic_position_base.x + inav.position_correction.x);
-//			inav.position_error.y = y_cm - (historic_position_base.y + inav.position_correction.y);
+//			inav.position_error.x = local_x_cm - (historic_position_base.x + inav.position_correction.x);
+//			inav.position_error.y = local_y_cm - (historic_position_base.y + inav.position_correction.y);
 			inav.position_error.z = z - (historic_position_base.z + inav.position_correction.z);
 		}
 	}
@@ -508,7 +526,7 @@ static int isSonarGlitching(void)
 	float sane_dt = (sens_sonar.stamp - inav.last_good_sonar_update) / 1000.0f;
 
 	float distance_cm = sens_sonar.depth - inav.last_good_sonar;
-	debug("distance to last_good_lat is %f", distance_cm);
+//	debug("distance to last_good_lat is %f", distance_cm);
 
 	int all_ok = 1;
 //	q[2] = distance_cm;
@@ -574,8 +592,8 @@ static void correctWithSonar(float dt)
 			else
 				historic_position_base.z = inav.position_base.z;
 
-			debug("position from sonar is %f; historic_position_base is %f; position_correction is %f",
-							z, inav.position_base.z, inav.position_correction.z);
+//			debug("position from sonar is %f; historic_position_base is %f; position_correction is %f",
+//							z, inav.position_base.z, inav.position_correction.z);
 
 			inav.position_error.z = z - (historic_position_base.z + inav.position_correction.z);
 		}
@@ -606,7 +624,7 @@ static void checkSonar(void)
 }
 
 
-void initializeHome()
+void initializeGPSHome()
 {
 	bool flag_GPS_HOME_FOUND = 0;
 	while(!flag_GPS_HOME_FOUND)
@@ -705,6 +723,10 @@ void initINAV()
 	inav.time_constant_z = AP_INTERTIALNAV_TC_Z;
 	updateINAVGains();
 
+	//update cv variables
+	inav.cv_last = 0;
+	inav.cv_last_update = 0;
+
 	//update gps time variables
 	inav.gps_last = 0;
 	inav.gps_last_update = 0;
@@ -712,7 +734,10 @@ void initINAV()
 	//initialize IMU
 	inav.last_good_imu = sens_imu.accel_calib;
 
-	initializeHome();
+#if(USE_GPS_NOT_CV == 1)
+	initializeGPSHome();
+#endif
+
 	//TODO UNNECESSARY initialize other variables
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
 	initializeAlt();
@@ -731,10 +756,17 @@ void resetINAV()
 	resetQueue(inav.historic_y, &inav.historic_y_property);
 	resetQueue(inav.historic_z, &inav.historic_z_property);
 
+	//update cv variables
+	inav.cv_last = 0;
+	inav.cv_last_update = 0;
+
 	//update gps time variables
 	inav.gps_last = 0;
 	inav.gps_last_update = 0;
-	initializeHome();
+
+#if(USE_GPS_NOT_CV == 1)
+	initializeGPSHome();
+#endif
 
 	//initialize IMU
 	inav.last_good_imu = sens_imu.accel_calib;

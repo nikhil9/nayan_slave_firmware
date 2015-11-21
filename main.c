@@ -8,7 +8,7 @@
 #include "intercomm.h"
 #include "odroid_comm.h"
 
-//variables for state debugging via the mavlink message sim_state
+//variables for state DEBUGGING via the mavlink message sim_state
 float q[4];
 float ang_vel[3];
 /**
@@ -25,23 +25,8 @@ vector_3f velocity;
  */
 uint16_t rc_in[7];
 
-/**
- * @warning DO NOT EDIT!
- * main() function with system initialization
- * @return 0
- */
-
-
-float x_cm = 0;
-float y_cm = 0;
-
-vector_3f vis_pos_inp;
-uint64_t prev_vis_inp_time;
-uint64_t vis_inp_time;
-
-vector_3f vis_pos;
-
-vector_3f vis_vel;
+float local_x_cm = 0;
+float local_y_cm = 0;
 
 Sensor_IMU sens_imu;
 uint32_t last_imu_stamp;
@@ -60,9 +45,23 @@ WP_Nav wp_nav;
 int count_arming = 1000;
 uint8_t FLAG_ARMING = 0;
 
-int main(void){
+inline void checkArmingStatus(void)
+{
+	//CONDITION FOR MOTORS BEING ARMED(Note that these values may need to recalibrated in case remote is changed)
+	if(rc_in[2] < (THROTTLE_MIN + 80) && rc_in[3] > (STICK_MAX - 80))
+	{
+		if(count_arming < 100)			//pressed continuously for 1 sec @100Hz
+			count_arming++;
+	}
+	else
+	{
+		if(count_arming > 0)
+			count_arming--;
+	}
+}
 
-
+int main(void)
+{
 	halInit();
 	chSysInit();
 
@@ -71,24 +70,17 @@ int main(void){
 	delay(1000);
 
 	odroid_comm_init();
-
-	//intialize the position_controller
 	initializePosController();
-
 	resetController();
-
-	//intialize the wp_nav
 	initializeWPNav();
-
 	initINAV();
 
-	while(TRUE){
-/**
- * USER CODE GOES HERE
- */
+	while(TRUE)
+	{
 		uint32_t start = chTimeNow();
 		if(sens_imu.stamp > last_imu_stamp)
 		{
+			debug("%d,%f,%f,%f",sens_imu.stamp, ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
 			if(isIMUGlitching() == 0)
 			{
 				updateAHRS();
@@ -97,6 +89,7 @@ int main(void){
 			}
 			else
 			{
+				debug("IMU glitched");
 				delay(10);
 				continue;
 			}
@@ -110,17 +103,8 @@ int main(void){
 		else
 			resetController();
 
-		//CONDITION FOR MOTORS BEING ARMED(Note that these values may need to recalibrated in case remote is changed)
-		if(rc_in[2] < (THROTTLE_MIN + 80) && rc_in[3] > (STICK_MAX - 80))
-		{
-			if(count_arming < 100)			//pressed continuously for 1 sec @100Hz
-				count_arming++;
-		}
-		else
-		{
-			if(count_arming > 0)
-				count_arming--;
-		}
+		checkArmingStatus();
+
 		if(count_arming == 100 && FLAG_ARMING == 0)
 		{
 			FLAG_ARMING = 1;
@@ -130,6 +114,10 @@ int main(void){
 			FLAG_ARMING = 0;
 
 		delay(10);
+
+		uint32_t stop = chTimeNow();
+		float duration = (stop-start)/0.1f;
+//		debug("Time for execution of code is %f us", duration);
 	}
 	return 0;
 }
