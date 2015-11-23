@@ -23,14 +23,14 @@ int isIMUGlitching(void)
 {
 	int all_ok = 1;
 
-	if(isnan(ahrs.attitude.x)||isnan(ahrs.attitude.y)||isnan(ahrs.attitude.z))
+	if(isnan(sens_imu.attitude.x)||isnan(sens_imu.attitude.y)||isnan(sens_imu.attitude.z))
 		all_ok = 0;
 
-	if(isinf(ahrs.attitude.x)||isinf(ahrs.attitude.y)||isinf(ahrs.attitude.z))
+	if(isinf(sens_imu.attitude.x)||isinf(sens_imu.attitude.y)||isinf(sens_imu.attitude.z))
 		all_ok = 0;
 
 	//assuming that the maximum attitude angles is 10 rad
-	if((fabs(ahrs.attitude.x)>10)||(fabs(ahrs.attitude.y)>10)||(fabs(ahrs.attitude.z)>10))
+	if((fabs(sens_imu.attitude.x)>10)||(fabs(sens_imu.attitude.y)>10)||(fabs(sens_imu.attitude.z)>10))
 		all_ok = 0;
 
 	if(isnan(sens_imu.accel_calib.x)||isnan(sens_imu.accel_calib.y)||isnan(sens_imu.accel_calib.z))
@@ -52,8 +52,8 @@ int isIMUGlitching(void)
 
 //	q[1] = normVec3f(accel_diff);
 
-	if(normVec3f(accel_diff) > MAX_ACCEL_CHANGE)
-		all_ok = 0;
+//	if(normVec3f(accel_diff) > MAX_ACCEL_CHANGE)
+//		all_ok = 0;
 
 	if(all_ok == 1 )
 	{

@@ -24,24 +24,6 @@ ic_imu_u ic_imu_data;
 ic_rc_or_u ic_rc_or_data;
 
 /**
- * @brief corrects the IMU data so that all accelero and gyro are in the NED frame
- */
-static void correctIMUTemp(void)
-{
-	float tmp;
-	tmp = sens_imu.accel_calib.y;
-	sens_imu.accel_calib.y = -sens_imu.accel_calib.x;
-	sens_imu.accel_calib.x = -tmp;
-
-	tmp = sens_imu.gyro_calib.y;
-	sens_imu.gyro_calib.y = -sens_imu.gyro_calib.x;
-	sens_imu.gyro_calib.x = -tmp;
-
-	//TODO on 24th OCT the rc channel 6 and 7 were switched hence take care of them too
-
-}
-
-/**
  * @Warning DO NOT EDIT THIS FUNCTION EVER!
  */
 
@@ -102,7 +84,7 @@ void update_ic_data(void){
 	_position_gps.y = ic_imu_data.ic_imu.lng;
 	_position_gps.z = ic_imu_data.ic_imu.alt;
 
-	correctIMUTemp();	//TODO remove this ultimately(change required in LLP)
+	//TODO on 24th OCT the rc channel 6 and 7 were switched hence take care of them too
 
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{

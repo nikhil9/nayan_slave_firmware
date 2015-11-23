@@ -43,7 +43,7 @@
 
 //============CONTROL VARIABLES FOR DIFFERENT ACTIONS==============
 #define USE_BARO_NOT_SONAR							0		//0 for sonar 1 for baro
-#define USE_GPS_NOT_CV								0		//0 for cv 1 for GPS
+#define USE_GPS_NOT_CV								1		//0 for cv 1 for GPS
 #define DEBUG_MODE									1		//0 for normal operation 1 for debugging mode
 //=================================================================
 
@@ -59,7 +59,7 @@
 	#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
 #else
 	#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   1
-	#define AP_HISTORIC_XY_SIZE							3
+	#define AP_HISTORIC_XY_SIZE							5
 	#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
 #endif
 

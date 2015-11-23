@@ -631,8 +631,8 @@ void setAttitude(float roll, float pitch, float yaw_rate)
 	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
 
 	//USE THIS IF YOU WANT TO DIRECTLY MAP RC INPUTS TO OVERRIDES
-//	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
-//	ic_rc_or_data.ic_rc.rc2 = rc_in[1];
+	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
+	ic_rc_or_data.ic_rc.rc2 = rc_in[1];
 //	ic_rc_or_data.ic_rc.rc4 = rc_in[3];
 }
 
@@ -662,5 +662,5 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 //	debug("sending out throttle %d", pos_control.throttle_out);
 
 	//USE THIS IF YOU WANT TO DIRECTLY MAP RC INPUTS TO OVERRIDES
-	//	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
+//	ic_rc_or_data.ic_rc.rc3 = rc_in[2];
 }

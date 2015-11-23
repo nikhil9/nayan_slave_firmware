@@ -80,7 +80,8 @@ int main(void)
 		uint32_t start = chTimeNow();
 		if(sens_imu.stamp > last_imu_stamp)
 		{
-			debug("%d,%f,%f,%f",sens_imu.stamp, ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
+			debug("IMU : %d,%f,%f,%f",sens_imu.stamp, sens_imu.attitude.x, sens_imu.attitude.y, sens_imu.attitude.z);
+			debug("IMU : %d,%f,%f,%f",ahrs.stamp, ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
 			if(isIMUGlitching() == 0)
 			{
 				updateAHRS();

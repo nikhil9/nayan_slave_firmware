@@ -147,40 +147,18 @@ static void send_local_position_ned(void)
 #endif
 }
 
-////TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
-//static void send_hil_state(void)
-//{
-//	mavlink_msg_hil_state_send(
-//			MAVLINK_COMM_0,
-//			millis(),
-//			pos_control.pos_desired.x,
-//			pos_control.pos_desired.y,
-//			pos_control.pos_desired.z,
-//			pos_control.vel_desired.x,
-//			pos_control.vel_desired.y,
-//			pos_control.vel_desired.z,
-//			pos_control.pos_target.x*10,
-//			pos_control.pos_target.y*10,
-//			pos_control.pos_target.z*10,
-//			pos_control.vel_target.x*10,
-//			pos_control.vel_target.y*10,
-//			pos_control.vel_target.z*10,
-//			pos_control.accel_target_filter_x.output*10,
-//			pos_control.accel_target_filter_y.output*10,
-//			pos_control.accel_target.z*10
-//			);
-//}
+//TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
 static void send_hil_state(void)
 {
 	mavlink_msg_hil_state_send(
 			MAVLINK_COMM_0,
 			millis(),
-			sens_imu.accel_calib.x,
-			sens_imu.accel_calib.y,
-			sens_imu.accel_calib.z,
-			ahrs.attitude.x,
-			ahrs.attitude.y,
-			ahrs.attitude.z,
+			pos_control.pos_desired.x,
+			pos_control.pos_desired.y,
+			pos_control.pos_desired.z,
+			pos_control.vel_desired.x,
+			pos_control.vel_desired.y,
+			pos_control.vel_desired.z,
 			pos_control.pos_target.x*10,
 			pos_control.pos_target.y*10,
 			pos_control.pos_target.z*10,
@@ -461,18 +439,18 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
     	//TODO replace this when switching back from GPS and baro based feedback to CV and PX4flow
-    	  /*TODO BUG in UAS
-    	   * Transformation in Eigen/Geometry near mat.eulerAngles it has been stated
-    	   * the returned angles are in the range [0:pi]x[-pi:pi]x[-pi:pi]
-    	   * In quaternion_to_rpy() present in the file uas_quaternion_utils.cpp in the folder
-    	   * mavros/mavros/src/lib the function mat.eulerAngles has been used to obtain YPR in
-    	   * the order 2,1,0
-    	   * So the yaw obtained is in the range is in [0 pi] which causes a bug
-    	   * Hence the yaw obtained inside the FCU code is in range of [0 pi] which is wrong coz
-    	   * -pi/2 was represented as pi/2
-    	   * So now the yaw angle is sent as roll angle and similarly in FCU the cv yaw is assigned
-    	   * to the roll angle
-    	   */
+		/*FIXME BUG in UAS
+		* Transformation in Eigen/Geometry near mat.eulerAngles it has been stated
+		* the returned angles are in the range [0:pi]x[-pi:pi]x[-pi:pi]
+		* In quaternion_to_rpy() present in the file uas_quaternion_utils.cpp in the folder
+		* mavros/mavros/src/lib the function mat.eulerAngles has been used to obtain YPR in
+		* the order 2,1,0
+		* So the yaw obtained is in the range is in [0 pi] which causes a bug
+		* Hence the yaw obtained inside the FCU code is in range of [0 pi] which is wrong coz
+		* -pi/2 was represented as pi/2
+		* So now the yaw angle is sent as roll angle and similarly in FCU the cv yaw is assigned
+		* to the roll angle
+		*/
 
     	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
     	sens_cv.position.x = 100*vision_position_inp.x;
