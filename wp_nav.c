@@ -108,15 +108,14 @@ void getPilotDesiredAcceleration()
 
 	int16_t control_pitch = (control_pitch_in - STICK_MID);
 	int16_t control_roll = (control_roll_in - STICK_MID);
-	//TODO check the above for errors in sign
 
 	if(abs(control_pitch) < STICK_DEADBAND)
 		control_pitch = 0;
 	if(abs(control_roll) < STICK_DEADBAND)
 		control_roll = 0;
 
-//	control_pitch = 0;	// TODO override added to check without remote
-//	control_roll = 0;
+	control_pitch = 0;	// TODO override added to check without remote feedback
+	control_roll = 0;
 
 	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
@@ -127,8 +126,6 @@ void getPilotDesiredYawRate()
 	//TODO check these formulae for errors
 	int16_t control_yaw_rate = constrain_int(rc_in[3], STICK_MIN, STICK_MAX);
 	wp_nav._pilot_desired_yaw_rate = (control_yaw_rate - STICK_MID)*STICK_TO_DEGREEPS;
-
-//	wp_nav._pilot_desired_yaw_rate = 0; //TODO override added to check without remote
 }
 
 void getPilotClimbRate()

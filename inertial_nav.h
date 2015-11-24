@@ -23,8 +23,6 @@
 #define LATLON_TO_CM 1.113195f
 
 #define INERTIAL_NAV_DELTAT_MAX 		0.1
-#define AP_INTERTIALNAV_TC_XY   		2.5f // default time constant for complementary filter's X & Y axis
-#define AP_INTERTIALNAV_TC_Z    		1.0f // default time constant for complementary filter's Z axis
 
 // #defines to control how often historical accel based positions are saved
 // so they can later be compared to laggy gps readings
@@ -43,32 +41,33 @@
 
 //============CONTROL VARIABLES FOR DIFFERENT ACTIONS==============
 #define USE_BARO_NOT_SONAR							0		//0 for sonar 1 for baro
-#define USE_GPS_NOT_CV								1		//0 for cv 1 for GPS
+#define USE_GPS_NOT_CV								0		//0 for cv 1 for GPS
 #define DEBUG_MODE									1		//0 for normal operation 1 for debugging mode
 //=================================================================
 
 #if (USE_BARO_NOT_SONAR == 1)
-	#define AP_HISTORIC_Z_SIZE							COUNT_Z_DELAY_BARO
+	#define AP_HISTORIC_Z_SIZE						COUNT_Z_DELAY_BARO
+	#define AP_INTERTIALNAV_TC_Z    				1.0f // default time constant for complementary filter's Z axis
+	#define POSTARGET_MAX_ALTITUDE					1000
+	#define POSTARGET_MIN_ALTITUDE					-1000
 #else
-	#define AP_HISTORIC_Z_SIZE							COUNT_Z_DELAY_SONAR
+	#define AP_HISTORIC_Z_SIZE						COUNT_Z_DELAY_SONAR
+	#define AP_INTERTIALNAV_TC_Z    				1.0f // default time constant for complementary filter's Z axis
+	#define POSTARGET_MAX_ALTITUDE					350
+	#define POSTARGET_MIN_ALTITUDE					50
+
 #endif
 
 #if (USE_GPS_NOT_CV == 1)
 	#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   10
 	#define AP_HISTORIC_XY_SIZE							5
 	#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
+	#define AP_INTERTIALNAV_TC_XY   					2.5f 	// default time constant for complementary filter's X & Y axis
 #else
 	#define AP_INTERTIALNAV_SAVE_POS_AFTER_ITERATIONS   1
 	#define AP_HISTORIC_XY_SIZE							5
 	#define AP_INTERTIALNAV_GPS_LAG_IN_10HZ_INCREMENTS  4       // must not be larger than size of _hist_position_estimate_x and _hist_position_estimate_y
-#endif
-
-#if (USE_BARO_NOT_SONAR == 1)
-	#define POSTARGET_MAX_ALTITUDE					1000
-	#define POSTARGET_MIN_ALTITUDE					-1000
-#else
-	#define POSTARGET_MAX_ALTITUDE					400
-	#define POSTARGET_MIN_ALTITUDE					40
+	#define AP_INTERTIALNAV_TC_XY   					1.0f 	// default time constant for complementary filter's X & Y axis
 #endif
 
 /**
