@@ -40,6 +40,7 @@
 #define MAX_BODY_ACCEL								1000	//10mss
 
 //============CONTROL VARIABLES FOR DIFFERENT ACTIONS==============
+// WARNING: state estimation using CV and SONAR are not stable as of now. Switch to CV and SONAR with caution
 #define USE_BARO_NOT_SONAR							0		//0 for sonar 1 for baro
 #define USE_GPS_NOT_CV								0		//0 for cv 1 for GPS
 #define DEBUG_MODE									1		//0 for normal operation 1 for debugging mode

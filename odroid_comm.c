@@ -438,7 +438,6 @@ void handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
-    	//TODO replace this when switching back from GPS and baro based feedback to CV and PX4flow
 		/*FIXME BUG in UAS
 		* Transformation in Eigen/Geometry near mat.eulerAngles it has been stated
 		* the returned angles are in the range [0:pi]x[-pi:pi]x[-pi:pi]
@@ -459,6 +458,10 @@ void handleMessage(mavlink_message_t* msg)
     	sens_cv.yaw = -vision_position_inp.roll;
     	sens_cv.obc_stamp = vision_position_inp.usec;
     	sens_cv.stamp = millis();
+    	if(fabs(vision_position_inp.yaw - 1) < EPSILON)
+    		sens_cv.flag_active = 1;
+    	else
+    		sens_cv.flag_active = 0;
 
 		sens_sonar.obc_stamp = vision_position_inp.usec;
 		sens_sonar.stamp = sens_cv.stamp;

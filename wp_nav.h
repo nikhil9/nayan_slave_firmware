@@ -12,14 +12,15 @@
 
 ///--------------CONSTANTS by Atulya-----------
 
-#define MID_STICK_THROTTLE						1500
+#define MID_STICK_THROTTLE						1600
 #define THROTTLE_DEADZONE						150
 #define THROTTLE_MIN							1000
 #define THROTTLE_MAX							2000
 #define STICK_MIN								1000
 #define STICK_MID								1500
 #define STICK_MAX								2000
-#define DEGREE_TO_STICK							200.0f/10.0f	//Based on roll stick test by giving a command of 200 and checking the response angle in degree
+#define STICK_DEADBAND_ZONE						15
+#define DEGREE_TO_STICK							185.0f/10.0f	//Based on roll stick test by giving a command of 200 and checking the response angle in degree
 #define STICK_DEADBAND							15
 #define THROTTLE_OUTPUT_MAX						1700
 #define THROTTLE_OUTPUT_MIN						1300
@@ -93,6 +94,7 @@ typedef struct ap_waypoint_nav
     float    	_pilot_desired_yaw_rate;// pilot's desired yaw rate		IGNORE added by atulya
     float     	_pilot_desired_climb_rate;// pilot's desired climb rate in cms	IGNORE added by atulya
     float		_pilot_max_z_velocity;	//max z velocity from the pilot	IGNORE added by atulya
+    float		_pilot_max_xy_speed; 	//max horizontal speed from the pilot	IGNORE added by atulya
     float		_nav_accel_desired_x;	// required acceleration to maintain a desired point IGNORE added by atulya
     float		_nav_accel_desired_y;	// required acceleration to maintain a desired point IGNORE added by atulya
     Vector2f	waypoint;				// target waypoint for the system
@@ -131,6 +133,7 @@ void initializeWPNav(void);
 
 void loiter_run(void);					//TODO
 
+void getPilotDesiredXYVelocity(void);
 void getPilotDesiredAcceleration(void);
 void getPilotDesiredYawRate(void);
 void getPilotClimbRate(void);

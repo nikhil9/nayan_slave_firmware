@@ -62,6 +62,7 @@ typedef struct
 	            uint16_t reset_accel_to_throttle    : 1;    // 1 if we should reset the accel_to_throttle step of the z-axis controller
 	            uint16_t freeze_ff_xy       : 1;    // 1 use to freeze feed forward during step updates
 	            uint16_t freeze_ff_z        : 1;    // 1 use to freeze feed forward during step updates
+	            uint16_t xy_control_to_pilot : 1;	// IGNORE added by atulya 1->RP control with pilot 0-> RP with HLP
 	    } _flags;
 
 	struct poscontrol_limit_flags {
@@ -92,6 +93,7 @@ typedef struct
 	float       speed_cms;             // max horizontal speed in cm/s
 	float       accel_z_cms;           // max vertical acceleration in cm/s/s
 	float       accel_last_z_cms;      // max vertical acceleration in cm/s/s
+	float       accel_last_xy_cms;     // previous desired acceleration in cms
 	float       accel_cms;             // max horizontal acceleration in cm/s/s
 	float       leash;                 // horizontal leash length in cm.  target will never be further than this distance from the vehicle
 	float       leash_down_z;          // vertical leash down in cm.  target will never be further than this distance below the vehicle

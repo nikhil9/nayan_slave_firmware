@@ -11,6 +11,7 @@
 #define AUTOPILOT_MATH_H_
 
 #define CM_TO_MM 10
+#define EPSILON 1e-3F
 
 #define max(a,b) ((a)>(b)?(a):(b))
 #define min(a,b) ((a)<(b)?(a):(b))
@@ -148,6 +149,11 @@ static inline int constrain_int(int amt, int low, int high)
 static inline float normVec3f(Vector3f inp)
 {
 	return sqrt(pow(inp.x,2)+ pow(inp.y, 2)+ pow(inp.z, 2));
+}
+
+static inline float normVec2f(Vector2f inp)
+{
+	return sqrt(pow(inp.x,2)+ pow(inp.y, 2));
 }
 
 void initializeVector3fToZero(Vector3f* inp);

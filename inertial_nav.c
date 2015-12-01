@@ -726,6 +726,7 @@ void initINAV()
 	//update cv variables
 	inav.cv_last = 0;
 	inav.cv_last_update = 0;
+	sens_cv.flag_active = 0;
 
 	//update gps time variables
 	inav.gps_last = 0;
@@ -815,7 +816,7 @@ void updateINAV(uint32_t del_t)
 	if(dt > INERTIAL_NAV_DELTAT_MAX)
 		return;
 
-	ang_vel[0] = dt;
+	ang_vel[0] = dt;		//TODO remove temporary variables wherever not necessary
 	// check if new gps readings have arrived and use them to correct position estimates
 #if (USE_GPS_NOT_CV == 1)
 	checkGPS();

@@ -26,6 +26,7 @@ void initializeWPNav()
 	wp_nav._pilot_desired_yaw_rate = 0;
 	wp_nav._pilot_desired_climb_rate = 0;
 	wp_nav._pilot_max_z_velocity = WPNAV_WP_SPEED_DOWN;
+	wp_nav._pilot_max_xy_speed = WPNAV_WP_SPEED_MIN;
 	wp_nav._dt_pilot_inp = PILOT_INPUT_DT_50HZ;
 	wp_nav._last_pilot_update_ms = 0;
 
@@ -69,8 +70,8 @@ void loiter_run()
 		if (dt >= 0.2f) {
 			dt = 0.0f;
 		}
-//		getNavDesiredAcceleration();
-		getPilotDesiredAcceleration();
+		getPilotDesiredXYVelocity();
+//		getPilotDesiredAcceleration();
 		getPilotDesiredYawRate();
 		getPilotClimbRate();
 
@@ -84,6 +85,7 @@ void loiter_run()
 	setAltTargetfromClimbRate(wp_nav._pilot_desired_climb_rate, POSCONTROL_DT_100HZ);
 
 	updateZController();
+
 
 	// send throttle to attitude controller with angle boost
 	setThrottleOut(pos_control.throttle_in, 1, POSCONTROL_THROTTLE_CUTOFF_FREQ);
@@ -119,6 +121,70 @@ void getPilotDesiredAcceleration()
 
 	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
+}
+
+void getPilotDesiredXYVelocity()
+{
+	Vector2f pilot_desired_vel, desired_vel;
+	float stick_roll, stick_pitch;
+
+	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;
+	float deadband_bottom = MID_STICK_THROTTLE - THROTTLE_DEADZONE;
+
+	stick_roll = constrain_float(rc_in[0],THROTTLE_MIN,THROTTLE_MAX);
+	stick_pitch = constrain_float(rc_in[1],THROTTLE_MIN,THROTTLE_MAX);
+
+	if (stick_roll < deadband_bottom)
+		pilot_desired_vel.y = wp_nav._pilot_max_xy_speed * (stick_roll-deadband_bottom) / (deadband_bottom-THROTTLE_MIN);
+	else
+	{
+		if (stick_roll > deadband_top)
+			pilot_desired_vel.y = wp_nav._pilot_max_xy_speed * (stick_roll-deadband_top) / (THROTTLE_MAX-deadband_top);
+		else
+			pilot_desired_vel.y = 0.0f;
+	}
+
+	if (stick_pitch < deadband_bottom)
+		pilot_desired_vel.x = -wp_nav._pilot_max_xy_speed * (stick_pitch-deadband_bottom) / (deadband_bottom-THROTTLE_MIN);
+	else
+	{
+		if (stick_pitch > deadband_top)
+			pilot_desired_vel.x = -wp_nav._pilot_max_xy_speed * (stick_pitch-deadband_top) / (THROTTLE_MAX-deadband_top);
+		else
+			pilot_desired_vel.x = 0.0f;
+	}
+
+	float jerk_xy = pos_control.accel_cms * POSCONTROL_JERK_RATIO;
+
+	desired_vel.x = (pilot_desired_vel.x*ahrs.cos_psi - pilot_desired_vel.y*ahrs.sin_psi);
+	desired_vel.y = (pilot_desired_vel.x*ahrs.sin_psi + pilot_desired_vel.y*ahrs.cos_psi);
+
+	Vector2f vel_diff;
+	vel_diff.x = desired_vel.x - pos_control.vel_desired.x;
+	vel_diff.y = desired_vel.y - pos_control.vel_desired.y;
+
+	debug("px is %.2f, py is %.2f; vx %.2f, vy %.2f; posvx %.2f, posvy %.2f; yaw %.2f", pilot_desired_vel.x, pilot_desired_vel.y,
+															desired_vel.x, desired_vel.y,
+															pos_control.vel_desired.x, pos_control.vel_desired.y,
+															ahrs.attitude.z);
+
+
+	float accel_xy_max = min(pos_control.accel_cms, sqrt(2.0f*fabsf(normVec2f(vel_diff))*jerk_xy));
+
+	pos_control.accel_last_xy_cms += jerk_xy * wp_nav._dt_pilot_inp;
+	pos_control.accel_last_xy_cms = min(accel_xy_max, pos_control.accel_last_xy_cms);
+
+	float vel_change_limit = pos_control.accel_last_xy_cms * wp_nav._dt_pilot_inp;
+	float vel_diff_norm = normVec2f(vel_diff);
+	if(vel_diff_norm > vel_change_limit && vel_change_limit > 0)
+	{
+		vel_diff.x = vel_diff.x*vel_change_limit/vel_diff_norm;
+		vel_diff.y = vel_diff.y*vel_change_limit/vel_diff_norm;
+	}
+
+	pos_control.vel_desired.x += vel_diff.x;
+	pos_control.vel_desired.y += vel_diff.y;
+
 }
 
 void getPilotDesiredYawRate()

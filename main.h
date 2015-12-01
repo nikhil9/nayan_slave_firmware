@@ -53,6 +53,7 @@ typedef struct
 	uint64_t obc_stamp;
 	Vector3f position;
 	float yaw;
+	uint8_t flag_active;
 }Sensor_ExtPos;
 
 typedef struct

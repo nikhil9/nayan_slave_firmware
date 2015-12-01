@@ -24,6 +24,7 @@ void initializePosController()
 	pos_control.speed_cms = POSCONTROL_SPEED;
 	pos_control.accel_z_cms = POSCONTROL_ACCEL_Z;
 	pos_control.accel_last_z_cms = 0.0f;
+	pos_control.accel_last_xy_cms = 0.0f;
 	pos_control.accel_cms = POSCONTROL_ACCEL_XY;
 	pos_control.leash = POSCONTROL_LEASH_LENGTH_MIN;
 	pos_control.leash_down_z = POSCONTROL_LEASH_LENGTH_MIN;
@@ -78,6 +79,7 @@ void initializePosController()
 	pos_control._limit.vel_up = 1;
 	pos_control._limit.vel_down = 1;
 	pos_control._limit.accel_xy = 1;
+	pos_control._flags.xy_control_to_pilot = 1;
 
 }
 
@@ -144,6 +146,7 @@ static void desiredVelToPos(float nav_dt)
         pos_control.pos_target.x += pos_control.vel_desired.x * nav_dt;
         pos_control.pos_target.y += pos_control.vel_desired.y * nav_dt;
     }
+    //TODO CHECK IF IT IS POSSIBLE to replace pos_target with pos_desired
 }
 
 static float sqrtController(float error, float p, float second_ord_lim)
@@ -310,7 +313,7 @@ static void accelToLeanAngles(float dt, int use_althold_lean_angle)
         accel_max = min(accel_max, GRAVITY_MSS * 100.0f * sinf(DEG_TO_RAD*constrain_float(MAX_LEAN_ANGLE,10,45)));
     }
 
-    debug("accel_max is %f", accel_max);
+//    debug("accel_max is %f", accel_max);
 
     // scale desired acceleration if it's beyond acceptable limit
     accel_total = pythagorous2(pos_control.accel_target.x, pos_control.accel_target.y);
@@ -618,9 +621,23 @@ void updateZController()
 }
 void setAttitude(float roll, float pitch, float yaw_rate)
 {
-	int16_t roll_out = STICK_MID + DEGREE_TO_STICK*roll;
-	int16_t pitch_out = STICK_MID + DEGREE_TO_STICK*pitch;
-	int16_t yaw_rate_out = STICK_MID + DEGREEPS_TO_STICK*yaw_rate;
+	int16_t roll_out, pitch_out, yaw_rate_out;
+
+	if(roll < 0)
+		roll_out = STICK_MID + DEGREE_TO_STICK*roll - STICK_DEADBAND_ZONE;
+	if(roll > 0)
+		roll_out = STICK_MID + DEGREE_TO_STICK*roll + STICK_DEADBAND_ZONE;
+	if(roll == 0)
+		roll_out = STICK_MID;
+
+	if(pitch < 0)
+		pitch_out = STICK_MID + DEGREE_TO_STICK*pitch - STICK_DEADBAND_ZONE;
+	if(pitch > 0)
+		pitch_out = STICK_MID + DEGREE_TO_STICK*pitch + STICK_DEADBAND_ZONE;
+	if(pitch == 0)
+		pitch_out = STICK_MID;
+
+	yaw_rate_out = STICK_MID + DEGREEPS_TO_STICK*yaw_rate;
 
 	pos_control.roll_out = constrain_int(roll_out, RP_OUTPUT_MIN, RP_OUTPUT_MAX);
 	pos_control.pitch_out = constrain_int(pitch_out, RP_OUTPUT_MIN, RP_OUTPUT_MAX);
@@ -629,6 +646,19 @@ void setAttitude(float roll, float pitch, float yaw_rate)
 	ic_rc_or_data.ic_rc.rc1 = pos_control.roll_out;
 	ic_rc_or_data.ic_rc.rc2 = pos_control.pitch_out;
 	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
+
+#if(USE_GPS_NOT_CV == 0)
+	pos_control._flags.xy_control_to_pilot = 1 - sens_cv.flag_active;
+	if(pos_control._flags.xy_control_to_pilot)
+	{
+		ic_rc_or_data.ic_rc.rc1 = rc_in[0];
+		ic_rc_or_data.ic_rc.rc2 = rc_in[1];
+	}
+	else
+	{
+		debug("CV_ACTIVE");
+	}
+#endif
 
 	//USE THIS IF YOU WANT TO DIRECTLY MAP RC INPUTS TO OVERRIDES
 //	ic_rc_or_data.ic_rc.rc1 = rc_in[0];
