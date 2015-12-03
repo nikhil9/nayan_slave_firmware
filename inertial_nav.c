@@ -43,8 +43,6 @@ int isIMUGlitching(void)
 	if(normVec3f(sens_imu.accel_calib) < MIN_ACCEL_MEASURED)
 		all_ok = 0;
 
-	q[0] = normVec3f(sens_imu.accel_calib);
-
 	Vector3f accel_diff;
 	accel_diff.x = sens_imu.accel_calib.x - inav.last_good_imu.x;
 	accel_diff.y = sens_imu.accel_calib.y - inav.last_good_imu.y;
@@ -60,7 +58,12 @@ int isIMUGlitching(void)
 		inav.last_good_imu = sens_imu.accel_calib;
 		inav.last_good_imu_update = sens_imu.stamp;
 	}
-	q[2] = all_ok;
+	else
+	{
+		debug("IMU glitched");
+		debug("IMU LLP : %d,%f,%f,%f",sens_imu.stamp, sens_imu.attitude.x, sens_imu.attitude.y, sens_imu.attitude.z);
+		debug("AHRS : %d,%f,%f,%f",ahrs.stamp, ahrs.attitude.x, ahrs.attitude.y, ahrs.attitude.z);
+	}
 
 	return (!all_ok);
 }
@@ -141,7 +144,7 @@ static int isGPSGlitching(void)
 	float dlong = sens_gps.lng - inav.last_good_lng;
 
 	float distance_cm = sqrt(dlat*dlat + dlong*dlong)*LATLON_TO_CM;
-//	debug("distance to last_good_lat is %f", distance_cm);
+//	debug("distance to last_good_lat is %.2f", distance_cm);
 
 	int all_ok = 1;
 
@@ -156,19 +159,18 @@ static int isGPSGlitching(void)
 	{
 		all_ok = 0;
 	}
-	//TODO complete the accel_based distance
-//	else
-//	{
-//		// or if within the maximum distance we could have moved based on our acceleration
-//		accel_based_distance = 0.5f * _accel_max_cmss * sane_dt * sane_dt;
-//		all_ok = (distance_cm <= accel_based_distance);
-//	}
 
 	if(all_ok == 1)
 	{
 		inav.last_good_lat = sens_gps.lat;
 		inav.last_good_lng = sens_gps.lng;
 		inav.last_good_gps_update = sens_gps.stamp;
+	}
+	else
+	{
+		debug("GPS glitched. previous is (%f, %f); Current CV is (%f, %f)",
+										inav.last_good_lat*1e-7, inav.last_good_lng*1e-7,
+										sens_gps.lat*1e-7, sens_gps.lng*1e-7);
 	}
 	return (!all_ok);
 }
@@ -187,7 +189,7 @@ static void correctWithGPS(float dt)
 	local_y_cm = (sens_gps.lng - ahrs.lng_home) * inav.lon_to_cm_scaling;
 
 //	debug("GPS lat is %d; GPS lng is %d;", sens_gps.lat, sens_gps.lng);
-//	debug("GPS x is %f; GPS y is %f; deltat is %f",x,y,dt);
+//	debug("GPS x is %.2f; GPS y is %.2f; deltat is %.2f",x,y,dt);
 
 	// sanity check the gps position.  Relies on the main code calling GPS_Glitch::check_position() immediatley after a GPS update
 	int glitching_status = isGPSGlitching();
@@ -203,7 +205,7 @@ static void correctWithGPS(float dt)
 		// reset the inertial nav position and velocity to gps values
 		if(inav.flag_gps_glitching == 1)
 		{
-			debug("position base %f; position correction is %f; position_error is %f",
+			debug("position base %.2f; position correction is %.2f; position_error is %.2f",
 							inav.position_base.x, inav.position_correction.x, inav.position_error.x);
 			setPositionXY(local_x_cm,local_y_cm);
 			inav.position_error.x = 0.0f;
@@ -224,7 +226,7 @@ static void correctWithGPS(float dt)
 				historic_position_base.y = inav.position_base.y;
 			}
 
-//			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
+//			debug("position from gps is %.2f; historic_position_base is %.2f; position_correction is %.2f",
 //							local_x_cm, inav.position_base.x, inav.position_correction.x);
 
 			inav.position_error.x = local_x_cm - (historic_position_base.x + inav.position_correction.x);
@@ -271,7 +273,7 @@ static int isCVGlitching(void)
 	float dy = sens_cv.position.y - inav.last_good_cv.y;
 
 	float distance_cm = sqrt(dx*dx + dy*dy);
-//	debug("distance to last_good_lat is %f", distance_cm);
+//	debug("distance to last_good_lat is %.2f", distance_cm);
 
 	int all_ok = 1;
 
@@ -292,6 +294,12 @@ static int isCVGlitching(void)
 		inav.last_good_cv.x = sens_cv.position.x;
 		inav.last_good_cv.y = sens_cv.position.y;
 		inav.last_good_cv_update = sens_cv.stamp;
+	}
+	else
+	{
+		debug("CV glitched. previous CV  is (%.2f, %.2f); Current CV is (%.2f, %.2f)",
+												inav.last_good_cv.x, inav.last_good_cv.y,
+												sens_cv.position.x, sens_cv.position.y);
 	}
 	return (!all_ok);
 }
@@ -323,7 +331,7 @@ static void correctWithCV(float dt)
 		// reset the inertial nav position and velocity to gps values
 		if(inav.flag_cv_glitching == 1)
 		{
-			debug("position base %f; position correction is %f; position_error is %f",
+			debug("position base %.2f; position correction is %.2f; position_error is %.2f",
 							inav.position_base.x, inav.position_correction.x, inav.position_error.x);
 			setPositionXY(local_x_cm,local_y_cm);
 			inav.position_error.x = 0.0f;
@@ -344,7 +352,7 @@ static void correctWithCV(float dt)
 				historic_position_base.y = inav.position_base.y;
 			}
 
-//			debug("position from gps is %f; historic_position_base is %f; position_correction is %f",
+//			debug("position from gps is %.2f; historic_position_base is %.2f; position_correction is %.2f",
 //							local_x_cm, inav.position_base.x, inav.position_correction.x);
 
 			inav.position_error.x = local_x_cm - (historic_position_base.x + inav.position_correction.x);
@@ -388,7 +396,7 @@ static int isBaroGlitching(void)
 	float sane_dt = (sens_baro.stamp - inav.last_good_gps_update) / 1000.0f;
 
 	float distance_cm = sens_baro.position.z - inav.last_good_baro.z;
-//	debug("distance to last_good_baro is %f", distance_cm);
+//	debug("distance to last_good_baro is %.2f", distance_cm);
 
 	int all_ok = 1;
 //	q[2] = distance_cm;
@@ -410,20 +418,14 @@ static int isBaroGlitching(void)
 		all_ok = 0;
 	}
 
-		//TODO UNNECESSARY complete the accel_based distance
-	//	else
-	//	{
-	//		// or if within the maximum distance we could have moved based on our acceleration
-	//		accel_based_distance = 0.5f * _accel_max_cmss * sane_dt * sane_dt;
-	//		all_ok = (distance_cm <= accel_based_distance);
-	//	}
-
-	q[3] = all_ok;
-
 	if(all_ok == 1)
 	{
 		inav.last_good_baro.z = sens_baro.position.z;
 		inav.last_good_baro_update = sens_baro.stamp;
+	}
+	else
+	{
+		debug("BARO glitched. previous baro reading is %.2f; Current baro reading is %.2f", inav.last_good_baro.z, sens_baro.position.z);
 	}
 	return (!all_ok);
 }
@@ -457,7 +459,7 @@ static void correctWithBaro(float dt)
 		// reset the inertial nav position and velocity to gps values
 		if(inav.flag_baro_glitching == 1)
 		{
-			debug("Z : baro: %z pos base %f; pos_correction is %f; pos_error is %f",
+			debug("Z : baro: %z pos base %.2f; pos_correction is %.2f; pos_error is %.2f",
 							z, inav.position_base.z, inav.position_correction.z, inav.position_error.z);
 
 //			setPositionXY(local_x_cm,local_y_cm);
@@ -483,8 +485,8 @@ static void correctWithBaro(float dt)
 			else
 				historic_position_base.z = inav.position_base.z;
 
-			debug("position from baro is %f; historic_position_base is %f; position_correction is %f",
-							z, inav.position_base.z, inav.position_correction.z);
+//			debug("position from baro is %.2f; historic_position_base is %.2f; position_correction is %.2f",
+//							z, inav.position_base.z, inav.position_correction.z);
 
 //			inav.position_error.x = local_x_cm - (historic_position_base.x + inav.position_correction.x);
 //			inav.position_error.y = local_y_cm - (historic_position_base.y + inav.position_correction.y);
@@ -526,7 +528,7 @@ static int isSonarGlitching(void)
 	float sane_dt = (sens_sonar.stamp - inav.last_good_sonar_update) / 1000.0f;
 
 	float distance_cm = sens_sonar.depth - inav.last_good_sonar;
-//	debug("distance to last_good_lat is %f", distance_cm);
+//	debug("distance to last_good_lat is %.2f", distance_cm);
 
 	int all_ok = 1;
 //	q[2] = distance_cm;
@@ -553,6 +555,10 @@ static int isSonarGlitching(void)
 		inav.last_good_sonar = sens_sonar.depth;
 		inav.last_good_sonar_update = sens_sonar.stamp;
 	}
+	else
+	{
+		debug("SONAR glitched. previous sonar reading is %.2f; Current Sonar reading is %.2f", inav.last_good_sonar, sens_sonar.depth);
+	}
 	return (!all_ok);
 }
 
@@ -577,7 +583,7 @@ static void correctWithSonar(float dt)
 		// reset the inertial nav position and velocity to gps values
 		if(inav.flag_sonar_glitching == 1)
 		{
-			debug("Z : sonar: %z pos base %f; pos_correction is %f; pos_error is %f",
+			debug("Z : sonar: %z pos base %.2f; pos_correction is %.2f; pos_error is %.2f",
 							z, inav.position_base.z, inav.position_correction.z, inav.position_error.z);
 
 			setAltitude(z);
@@ -592,7 +598,7 @@ static void correctWithSonar(float dt)
 			else
 				historic_position_base.z = inav.position_base.z;
 
-//			debug("position from sonar is %f; historic_position_base is %f; position_correction is %f",
+//			debug("position from sonar is %.2f; historic_position_base is %.2f; position_correction is %.2f",
 //							z, inav.position_base.z, inav.position_correction.z);
 
 			inav.position_error.z = z - (historic_position_base.z + inav.position_correction.z);
@@ -632,12 +638,13 @@ void initializeGPSHome()
 		//wait till a location close to 50KM radius of IITK is found from GPS
 		//TODO change this to using HDOP or something
 		//right now not getting that data so can't do much
-		debug("GPS lat is : %d; GPS long is : %d", sens_gps.lat, sens_gps.lng);
+		debug("Waiting for GPS lock close to IITK. Current GPS lat is : %f; GPS long is : %f", sens_gps.lat*1e-7, sens_gps.lng*1e-7);
 		if((fabs(sens_gps.lat*1e-7 - 26.5) + fabs(sens_gps.lng*1e-7 - 80.2)) < 1)
 			flag_GPS_HOME_FOUND = 1;
 		delay(100);
 	}
 
+	debug("Found GPS lock close to IITK. Current GPS lat is : %f; GPS long is : %f", sens_gps.lat*1e-7, sens_gps.lng*1e-7);
 	ahrs.lat_home = sens_gps.lat;
 	ahrs.lng_home = sens_gps.lng;
 	inav.last_good_lat = sens_gps.lat;
@@ -674,15 +681,18 @@ void setupHomePosition()
 
 void initializeAlt()
 {
+	debug("Initializing altitude");
 	bool flag_EXT_POS_HOME_FOUND = 0;
 	while(!flag_EXT_POS_HOME_FOUND)
 	{
 #if (USE_BARO_NOT_SONAR == 1)
+		debug("Waiting for Baro to send data");
 		if(sens_baro.stamp != 0)
 			flag_EXT_POS_HOME_FOUND = 1;
 #else
+		debug("Waiting for SONAR to send data");
 		if(sens_sonar.stamp != 0)
-				flag_EXT_POS_HOME_FOUND = 1;
+			flag_EXT_POS_HOME_FOUND = 1;
 #endif
 		delay(100);
 	}
@@ -693,12 +703,14 @@ void initializeAlt()
 	inav.last_good_baro_update = sens_baro.stamp;
 	inav.position_correction.z = 0.0f;
 	inav.position.z = sens_baro.position.z;				//set initial altitude to whatever value is reached
+	debug("Received Baro data. Altitude is %f", sens_baro.position.z);
 #else
 	inav.position_base.z = sens_sonar.depth;
 	inav.last_good_baro.z = sens_sonar.depth;
 	inav.last_good_baro_update = sens_sonar.stamp;
 	inav.position_correction.z = 0.0f;
 	inav.position.z = sens_sonar.depth;				//set initial altitude to whatever value is reached
+	debug("Received SONAR data. Altitude is %f", sens_sonar.depth);
 #endif
 
 	inav.position_error.z = 0.0f;		//initial error is zero
@@ -708,6 +720,7 @@ void initializeAlt()
 
 void initINAV()
 {
+	debug("Initializing the INAV portion");
 	// initialize the queues
 	inav.historic_xy_counter = 0;
 	inav.historic_z_counter = 0;
@@ -747,6 +760,7 @@ void initINAV()
 
 void resetINAV()
 {
+	debug("Resetting the Inertial Navigation code");
 	// initialize the queues
 	inav.historic_xy_counter = 0;
 	inav.historic_z_counter = 0;
@@ -782,6 +796,8 @@ void resetINAV()
 
 void updateINAVGains()
 {
+	debug("Previous inav gains k1_xy : %f, k2_xy : %f, k3_xy", inav.k1_xy, inav.k2_xy, inav.k3_xy);
+	debug("Previous inav gains k1_z : %f, k2_z : %f, k3_z", inav.k1_xy, inav.k2_xy, inav.k3_xy);
 	// X & Y axis time constant
 	if (inav.time_constant_xy == 0.0f)
 	{
@@ -805,18 +821,20 @@ void updateINAVGains()
 		inav.k2_z = 3.0f / (inav.time_constant_z*inav.time_constant_z);
 		inav.k3_z = 1.0f / (inav.time_constant_z*inav.time_constant_z*inav.time_constant_z);
 	}
+	debug("Current inav gains k1_xy : %f, k2_xy : %f, k3_xy", inav.k1_xy, inav.k2_xy, inav.k3_xy);
+	debug("Current inav gains k1_z : %f, k2_z : %f, k3_z", inav.k1_xy, inav.k2_xy, inav.k3_xy);
 }
 
 void updateINAV(uint32_t del_t)
 {
 	float dt = del_t * 0.001f;
 
-//	debug("delta_time for INAV is %f", dt);
+//	debug("delta_time for INAV is %.2f", dt);
 
 	if(dt > INERTIAL_NAV_DELTAT_MAX)
 		return;
 
-	ang_vel[0] = dt;		//TODO remove temporary variables wherever not necessary
+//	debug_vec[0] = dt;		//temporary variables for logging
 	// check if new gps readings have arrived and use them to correct position estimates
 #if (USE_GPS_NOT_CV == 1)
 	checkGPS();
@@ -839,7 +857,6 @@ void updateINAV(uint32_t del_t)
 	accel_ef.z = -(ahrs.accel_ef.z*100 + GRAVITY_CMSS); //converting acceleration from NED to NEU for proper calculation of altitude
 
 	float accel_norm = normVec3f(accel_ef);
-	q[1] = accel_norm;
 
 	//assuming body acceleration more than 10mss is not possible and that this is probably a glitch
 	if(accel_norm > MAX_BODY_ACCEL)
@@ -857,13 +874,12 @@ void updateINAV(uint32_t del_t)
 	inav.accel_correction_hbf.y += position_error_hbf.y * tmp;
 	inav.accel_correction_hbf.z += inav.position_error.z * inav.k3_z  * dt;
 
-//	q[3] = inav.position_error.z;
 	tmp = inav.k2_xy * dt;
 	inav.velocity.x += inav.position_error.x * tmp;
 	inav.velocity.y += inav.position_error.y * tmp;
 	inav.velocity.z += inav.position_error.z * inav.k2_z  * dt;
-	ang_vel[1] = inav.position_error.z * inav.k2_z  * dt;
-//	debug("velocity is %f: velocity correction is %f", inav.velocity.z, inav.position_error.z * inav.k2_z  * dt);
+//	debug_vec[1] = inav.position_error.z * inav.k2_z  * dt;
+//	debug("velocity is %.2f: velocity correction is %.2f", inav.velocity.z, inav.position_error.z * inav.k2_z  * dt);
 
 	tmp = inav.k1_xy * dt;
 	inav.position_correction.x += inav.position_error.x * tmp;
@@ -892,16 +908,16 @@ void updateINAV(uint32_t del_t)
 	inav.position.y = inav.position_base.y + inav.position_correction.y;
 	inav.position.z = inav.position_base.z + inav.position_correction.z;
 
-//	debug("position base %f; position correction is %f; position_error is %f",
+//	debug("position base %.2f; position correction is %.2f; position_error is %.2f",
 //					inav.position_base.z, inav.position_correction.z, inav.position_error.z);
 
 	// calculate new velocity
 	inav.velocity.x += velocity_increase.x;
 	inav.velocity.y += velocity_increase.y;
 	inav.velocity.z += velocity_increase.z;
-	ang_vel[2] = velocity_increase.z;
+//	debug_vec[2] = velocity_increase.z;
 
-//	debug("velocity is %f, velocity increase is %f", inav.velocity.z, velocity_increase.z);
+//	debug("velocity is %.2f, velocity increase is %.2f", inav.velocity.z, velocity_increase.z);
 
 	pushToQueue(inav.position_base.z, inav.historic_z, &inav.historic_z_property);
 

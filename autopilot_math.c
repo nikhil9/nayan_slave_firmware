@@ -95,22 +95,21 @@ void resetLPF(LowPassFilter *lpf, float val)
 }
 
 // initalizes P, I, filt_hz, Imax
-void initializePI(Controller_PI_2D *pi, float kP, float kI, float imax, float filt_hz)
+void initializePI(Controller_PI_2D *pi, float kP, float kI, float imax, float filt_hz, float dt)
 {
 	pi->kP = kP;
 	pi->kI = kI;
 	pi->Imax = imax;
 	pi->filt_hz = filt_hz;
+	pi->dt = dt;
 
 	pi->integrator.x = 0;
 	pi->integrator.y = 0;
-	pi->dt = 0;
 	pi->filt_alpha = 0;
 	pi->input.x = 0;
 	pi->input.y = 0;
 	pi->reset_filter = 1;
 
-	//TODO initialize the kP and kI values of the controller
 }
 
 // set_input - set input to PID controller
@@ -198,23 +197,21 @@ Vector2f getPI_I_shrink(Controller_PI_2D *pi)
     return I;
 }
 
-void initializePID(Controller_PID *pid, float kP, float kI, float kD, float imax, float filt_hz)
+void initializePID(Controller_PID *pid, float kP, float kI, float kD, float imax, float filt_hz, float dt)
 {
 	pid->kP = kP;
 	pid->kI = kI;
 	pid->kD = kD;
 	pid->Imax = imax;
 	pid->filt_hz = filt_hz;
+	pid->dt = dt;
 
 	pid->derivative = 0;
-	pid->dt = 0;
 	pid->filt_alpha = 0;
 	pid->input = 0;
 	pid->integrator = 0;
 	pid->reset_filter = 1;
 	pid->result = 0;
-
-	//TODO initialize kp, ki, kd and imax; dt at some other place
 }
 
 void resetPID_I(Controller_PID *pid)

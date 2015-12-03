@@ -11,7 +11,7 @@
 #define POSITION_CONTROLLER_H_
 
 // position controller default definitions
-#define POSCONTROL_THROTTLE_HOVER               1500.0f  // default throttle required to maintain hover
+#define POSCONTROL_THROTTLE_HOVER               1550.0f  // IGNORE changed default throttle required to maintain hover
 #define POSCONTROL_ACCELERATION_MIN             50.0f   // minimum horizontal acceleration in cm/s/s - used for sanity checking acceleration in leash length calculation
 #define POSCONTROL_ACCEL_XY                     100.0f  // default horizontal acceleration in cm/s/s.  This is overwritten by waypoint and loiter controllers
 #define POSCONTROL_ACCEL_XY_MAX                 980.0f  // max horizontal acceleration in cm/s/s that the position velocity controller will ask from the lower accel controller

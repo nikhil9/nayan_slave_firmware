@@ -10,9 +10,9 @@ void initializePosController()
 {
 	pos_control._p_pos_z.kP = ALT_HOLD_P;
 	pos_control._p_vel_z.kP = VEL_Z_P;
-	initializePID(&pos_control._pid_accel_z, ACCEL_Z_P, ACCEL_Z_I, ACCEL_Z_D, ACCEL_Z_IMAX, ACCEL_Z_FILT_HZ);
+	initializePID(&pos_control._pid_accel_z, ACCEL_Z_P, ACCEL_Z_I, ACCEL_Z_D, ACCEL_Z_IMAX, ACCEL_Z_FILT_HZ, POSCONTROL_DT_100HZ);
 	pos_control._p_pos_xy.kP = POS_XY_P;
-	initializePI(&pos_control._pi_vel_xy, VEL_XY_P, VEL_XY_I, VEL_XY_IMAX, VEL_XY_FILT_HZ);
+	initializePI(&pos_control._pi_vel_xy, VEL_XY_P, VEL_XY_I, VEL_XY_IMAX, VEL_XY_FILT_HZ, POSCONTROL_DT_50HZ);
 
 	pos_control.dt = POSCONTROL_DT_100HZ;
 	pos_control.dt_xy = POSCONTROL_DT_50HZ;
@@ -146,7 +146,6 @@ static void desiredVelToPos(float nav_dt)
         pos_control.pos_target.x += pos_control.vel_desired.x * nav_dt;
         pos_control.pos_target.y += pos_control.vel_desired.y * nav_dt;
     }
-    //TODO CHECK IF IT IS POSSIBLE to replace pos_target with pos_desired
 }
 
 static float sqrtController(float error, float p, float second_ord_lim)
@@ -446,6 +445,11 @@ static void accelToThrottle(float accel_target_z)
 	// get d term
 	d = getPID_D(&pos_control._pid_accel_z);
 
+	debug_vec[0] = p;
+	debug_vec[1] = i;
+
+	debug("integral gain is %f, integral is %f, dt is %f", pos_control._pid_accel_z.kI,
+														i, pos_control._pid_accel_z.dt);
 	pos_control.throttle_in = p+i+d+pos_control.throttle_hover;
 
 //	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);			//used in wp_nav.c loiter_run
@@ -595,7 +599,6 @@ void setAltTargetfromClimbRate(float climb_rate_cms, float dt)
 		if(pos_control.vel_desired.z < 0)
 			pos_control.vel_desired.z = constrain_float(0.0f, pos_control.vel_desired.z-vel_change_limit, pos_control.vel_desired.z+vel_change_limit);
 	}
-    //TODO this velocity update will fail if quad has gone out of the alt max and min limits and the sensor saturates
 }
 void updateZController()
 {
@@ -671,9 +674,8 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 	float throttle_out;
 	//TODO check filt_hz and angle_boost
 	pos_control.throttle_in_filter.cutoff_freq = filt_hz;
-//	ang_vel[0] = throttle_in;
 	throttle_in = applyLPF(&pos_control.throttle_in_filter, throttle_in, POSCONTROL_DT_100HZ);
-	ang_vel[1] = throttle_in;
+	debug_vec[2] = throttle_in;
 
 	float cos_tilt = ahrs.cos_theta * ahrs.cos_phi;
 	float boost_factor = 1.0f/constrain_float(cos_tilt, 0.5f, 1.0f);
@@ -684,8 +686,6 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 	}
 	else
 		throttle_out = throttle_in;
-
-//	ang_vel[2] = throttle_out;
 
 	pos_control.throttle_out = constrain_int(throttle_out, THROTTLE_OUTPUT_MIN, THROTTLE_OUTPUT_MAX);
 	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;

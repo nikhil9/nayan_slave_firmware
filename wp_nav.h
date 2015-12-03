@@ -12,7 +12,7 @@
 
 ///--------------CONSTANTS by Atulya-----------
 
-#define MID_STICK_THROTTLE						1600
+#define MID_STICK_THROTTLE						1500
 #define THROTTLE_DEADZONE						150
 #define THROTTLE_MIN							1000
 #define THROTTLE_MAX							2000
@@ -28,8 +28,8 @@
 #define RP_OUTPUT_MIN							1300
 #define YAW_OUTPUT_MAX							1800
 #define YAW_OUTPUT_MIN							1200
-#define DEGREEPS_TO_STICK						100		//TODO correct this on the basis of what is present in wp_nav
-#define STICK_TO_DEGREEPS						0.01f	//TODO just a speculation check it
+#define DEGREEPS_TO_STICK						10		//TODO correct this on the basis of what is present in wp_nav
+#define STICK_TO_DEGREEPS						0.1f	//TODO just a speculation check it
 #define PILOT_INPUT_DT_50HZ						0.02f
 #define OMEGA									2.5
 #define TAU										1
@@ -131,7 +131,7 @@ void updateLoiter(void);
 
 void initializeWPNav(void);
 
-void loiter_run(void);					//TODO
+void loiter_run(void);
 
 void getPilotDesiredXYVelocity(void);
 void getPilotDesiredAcceleration(void);

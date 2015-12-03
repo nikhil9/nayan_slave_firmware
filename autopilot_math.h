@@ -16,12 +16,6 @@
 #define max(a,b) ((a)>(b)?(a):(b))
 #define min(a,b) ((a)<(b)?(a):(b))
 
-typedef struct{
-	float x;
-	float y;
-	float z;
-}vector_3f;
-
 /**
  * @brief implements a 2 dimensional vector of type float
  */
@@ -195,7 +189,7 @@ float applyLPF(LowPassFilter *lpf, float input, float dt);
 
 /////////////------------PI-----------////////////
 
-void initializePI(Controller_PI_2D *pi, float kP, float kI, float imax, float filt_hz);
+void initializePI(Controller_PI_2D *pi, float kP, float kI, float imax, float filt_hz, float dt);
 void setPIInput(Controller_PI_2D *pi, Vector2f input, float dt);
 void resetPI_I(Controller_PI_2D *pi);
 Vector2f getPI_P(Controller_PI_2D *pi);
@@ -204,7 +198,7 @@ Vector2f getPI_I_shrink(Controller_PI_2D *pi);
 
 ////////////////////////PID///////////////////////
 
-void initializePID(Controller_PID *pid, float kP, float kI, float kD, float imax, float filt_hz);
+void initializePID(Controller_PID *pid, float kP, float kI, float kD, float imax, float filt_hz, float dt);
 void setPIDInput_FilterAll(Controller_PID *pid, float input);
 void setPIDInput_FilterD(Controller_PID *pid, float input);
 void resetPID_I(Controller_PID *pid);

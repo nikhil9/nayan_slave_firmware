@@ -163,10 +163,11 @@ void getPilotDesiredXYVelocity()
 	vel_diff.x = desired_vel.x - pos_control.vel_desired.x;
 	vel_diff.y = desired_vel.y - pos_control.vel_desired.y;
 
-	debug("px is %.2f, py is %.2f; vx %.2f, vy %.2f; posvx %.2f, posvy %.2f; yaw %.2f", pilot_desired_vel.x, pilot_desired_vel.y,
-															desired_vel.x, desired_vel.y,
-															pos_control.vel_desired.x, pos_control.vel_desired.y,
-															ahrs.attitude.z);
+	//TODO REMOVE THIS after ensuring change targets are working fine
+//	debug("px is %.2f, py is %.2f; vx %.2f, vy %.2f; posvx %.2f, posvy %.2f; yaw %.2f", pilot_desired_vel.x, pilot_desired_vel.y,
+//															desired_vel.x, desired_vel.y,
+//															pos_control.vel_desired.x, pos_control.vel_desired.y,
+//															ahrs.attitude.z);
 
 
 	float accel_xy_max = min(pos_control.accel_cms, sqrt(2.0f*fabsf(normVec2f(vel_diff))*jerk_xy));

@@ -21,6 +21,8 @@
 #define DEG_TO_RAD 0.017453292519943295769236907684886f
 #define RAD_TO_DEG 57.295779513082320876798154814105f
 
+#define ARMING_COUNT 175
+
 /**
  * @brief stores the raw imu variables acceleration and the angular velocity
  */
@@ -92,14 +94,13 @@ extern Inertial_nav_data inav; /**< data structure storing the inertial navigati
 extern Position_Controller pos_control;
 extern WP_Nav wp_nav;
 
-extern vector_3f velocity;
+extern Vector3f velocity;
 extern uint16_t rc_in[7];
 
-//variables for sim_state
-extern float q[4];
-extern float ang_vel[3];
+//variables for debugging sent through sim_state
+extern float debug_vec[3];
 
-//TODO remove the temp variables after use
+//TODO Phase B : remove the temp variables after improving architecture
 extern float local_x_cm;
 extern float local_y_cm;
 
