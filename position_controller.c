@@ -18,7 +18,7 @@ void initializePosController()
 	pos_control.dt_xy = POSCONTROL_DT_50HZ;
 	pos_control.last_update_xy_ms = 0;
 	pos_control.last_update_z_ms = 0;
-	pos_control.throttle_hover = POSCONTROL_THROTTLE_HOVER;
+	pos_control.param_throttle_hover = POSCONTROL_THROTTLE_HOVER;
 	pos_control.speed_down_cms = POSCONTROL_SPEED_DOWN;
 	pos_control.speed_up_cms = POSCONTROL_SPEED_UP;
 	pos_control.speed_cms = POSCONTROL_SPEED;
@@ -33,7 +33,7 @@ void initializePosController()
 	pos_control.pitch_target = 0.0f;
 	pos_control.accel_xy_filt_hz = POSCONTROL_ACCEL_FILTER_HZ;
 	pos_control.throttle_in_filter.cutoff_freq = POSCONTROL_THROTTLE_CUTOFF_FREQ;
-	pos_control.throttle_in_filter.output = pos_control.throttle_hover;
+	pos_control.throttle_in_filter.output = pos_control.param_throttle_hover;
 
 	initializeVector3fToZero(&pos_control.pos_target);
 	initializeVector3fToZero(&pos_control.pos_error);
@@ -45,7 +45,7 @@ void initializePosController()
 	initializeVector3fToZero(&pos_control.accel_error);
 	initializeVector3fToZero(&pos_control.accel_feedforward);
 
-	pos_control.throttle_out = pos_control.throttle_hover;
+	pos_control.throttle_out = pos_control.param_throttle_hover;
 	pos_control.pitch_out = STICK_MID;
 	pos_control.roll_out = STICK_MID;
 	pos_control.yaw_rate_out = STICK_MID;
@@ -98,6 +98,17 @@ void resetController()
 	pos_control.vel_desired.y = 0;
 	pos_control.pos_target.x = inav.position.x;
 	pos_control.pos_target.y = inav.position.y;
+
+	pos_control.throttle_out = pos_control.param_throttle_hover;
+	pos_control.pitch_out = STICK_MID;
+	pos_control.roll_out = STICK_MID;
+	pos_control.yaw_rate_out = STICK_MID;
+
+	ic_rc_or_data.ic_rc.rc1 = pos_control.roll_out;
+	ic_rc_or_data.ic_rc.rc2 = pos_control.pitch_out;
+	ic_rc_or_data.ic_rc.rc3 = pos_control.throttle_out;
+	ic_rc_or_data.ic_rc.rc4 = pos_control.yaw_rate_out;
+
 }
 
 /// calc_leash_length - calculates the horizontal leash length given a maximum speed, acceleration and position kP gain
@@ -451,7 +462,7 @@ static void accelToThrottle(float accel_target_z)
 
 //	debug("integral gain is %f, integral is %f, dt is %f", pos_control._pid_accel_z.kI,
 //														i, pos_control._pid_accel_z.dt);
-	pos_control.throttle_in = p+i+d+pos_control.throttle_hover;
+	pos_control.throttle_in = p+i+d+pos_control.param_throttle_hover;
 
 //	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);			//used in wp_nav.c loiter_run
 

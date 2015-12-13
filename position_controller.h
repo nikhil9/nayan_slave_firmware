@@ -87,7 +87,7 @@ typedef struct
 	float       dt_xy;                 // time difference (in seconds) between update_xy_controller and update_vel_controller_xyz calls
 	uint32_t    last_update_xy_ms;     // system time of last update_xy_controller call
 	uint32_t    last_update_z_ms;      // system time of last update_z_controller call
-	float       throttle_hover;        // estimated throttle required to maintain a level hover
+	float       param_throttle_hover;        // estimated throttle required to maintain a level hover
 	float       speed_down_cms;        // max descent rate in cm/s
 	float       speed_up_cms;          // max climb rate in cm/s
 	float       speed_cms;             // max horizontal speed in cm/s

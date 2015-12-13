@@ -307,7 +307,7 @@ void resendParamMavLink(char _name[17], uint8_t param_id)
 		 mavlink_msg_param_value_send(
 				 MAVLINK_COMM_0,
 				 throttle_hover,
-				 pos_control.throttle_hover, 			//param value
+				 pos_control.param_throttle_hover, 			//param value
 				 MAVLINK_TYPE_FLOAT,	//param type
 				 PARAM_COUNT,
 				 throttle_hover_index);		//_queued_parameter_index
@@ -570,8 +570,8 @@ void FWupdateParamMavLink(char _name[17], float _paramValue){
 	  }
 	if(strcmp(_name, throttle_hover) == 0)
 	{
-		if(_paramValue > 1400 && _paramValue < 1600)
-			pos_control.throttle_hover = _paramValue;
+		if(_paramValue > 1300 && _paramValue < 1700)
+			pos_control.param_throttle_hover = _paramValue;
 
 		palSetPad(GPIOC, 12);
 		chThdSleepMilliseconds(2);
@@ -580,7 +580,7 @@ void FWupdateParamMavLink(char _name[17], float _paramValue){
 		mavlink_msg_param_value_send(
 			 MAVLINK_COMM_0,
 			 throttle_hover,
-			 pos_control.throttle_hover, 			//param value
+			 pos_control.param_throttle_hover, 			//param value
 			 MAVLINK_TYPE_FLOAT,	//param type
 			 PARAM_COUNT,
 			 throttle_hover_index);		//_queued_parameter_index
@@ -699,7 +699,7 @@ void FWparamQSend(void){
 		 mavlink_msg_param_value_send(
 				 MAVLINK_COMM_0,
 				 throttle_hover,
-				 pos_control.throttle_hover, 			//param value
+				 pos_control.param_throttle_hover, 			//param value
 				 MAVLINK_TYPE_FLOAT,	//param type
 				 PARAM_COUNT,		//_queued_parameter_count
 				 throttle_hover_index);		//_queued_parameter_index

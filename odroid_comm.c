@@ -444,10 +444,10 @@ void handleMessage(mavlink_message_t* msg)
     	sens_cv.position.x = 100*vision_position_inp.x;				//M to CM
     	sens_cv.position.y = 100*vision_position_inp.y;
     	sens_cv.position.z = -100*vision_position_inp.z;			//NED to NEU so that altitude is positive
-    	sens_cv.yaw = -vision_position_inp.roll;
+    	sens_cv.yaw = -vision_position_inp.roll;					//DUe to a bug above
     	sens_cv.obc_stamp = vision_position_inp.usec;
     	sens_cv.stamp = millis();
-    	if(fabs(vision_position_inp.yaw - 1) < EPSILON)
+    	if(fabs(vision_position_inp.yaw - 1) < EPSILON)				// signal sent to ensure CV is active
     		sens_cv.flag_active = 1;
     	else
     		sens_cv.flag_active = 0;

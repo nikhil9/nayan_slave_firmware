@@ -12,7 +12,7 @@
 
 ///--------------CONSTANTS by Atulya-----------
 
-#define MID_STICK_THROTTLE						1500
+#define MID_STICK_THROTTLE						POSCONTROL_THROTTLE_HOVER
 #define THROTTLE_DEADZONE						150
 #define THROTTLE_MIN							1000
 #define THROTTLE_MAX							2000
