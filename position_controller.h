@@ -38,7 +38,7 @@
 #define POSCONTROL_THROTTLE_CUTOFF_FREQ         2.0f    // low-pass filter on accel error (unit: hz)
 #define POSCONTROL_JERK_LIMIT_CMSSS             1700.0f // jerk limit on horizontal acceleration (unit: m/s/s/s)
 #define POSCONTROL_ACCEL_FILTER_HZ              2.0f    // low-pass filter on acceleration (unit: hz)
-#define POSCONTROL_JERK_RATIO                   1.0f    // Defines the time it takes to reach the requested acceleration
+#define POSCONTROL_JERK_RATIO                   0.5f    // Defines the time it takes to reach the requested acceleration IGNORE changed by atulya
 
 ///////////Constants defined by atulya ///////////
 #define MAX_LEAN_ANGLE							15	//in degrees

@@ -85,21 +85,26 @@ void loiter_run()
 
 		//DISABLE AUTO_WPNAV mode if sticks have been disturbed
 		// (if previously it was enabled it will be disabled in AUTO_WPNAV_COUNT_THRESHOLD/4*0.02 seconds)
-		if(wp_nav.count_wp_enable < AUTO_WPNAV_COUNT_THRESHOLD*3.0/4)
+		if(wp_nav.count_wp_enable < AUTO_WPNAV_COUNT_THRESHOLD*3.0/4 && wp_nav.flag_auto_wp_enable == 1)
+		{
 			wp_nav.flag_auto_wp_enable = 0;
+			debug("AUTO MODE DISABLED Flying in LOITER mode with stick inputs translating to velocity");
+		}
 
 		if(wp_nav.flag_auto_wp_enable == 1)
 		{
 			getWPNavDesiredVelocity();
+			debug("Flying in AUTO_WPNAV mode now");
 		}
 		else
 		{
 			getPilotDesiredXYVelocity();
 //			getPilotDesiredAcceleration();
+			getPilotClimbRate();
+//			debug("Flying in LOITER mode with stick inputs translating to velocity");
 		}
 
 		getPilotDesiredYawRate();
-		getPilotClimbRate();
 
 		wp_nav._last_pilot_update_ms = now;
 	}
@@ -111,7 +116,6 @@ void loiter_run()
 	setAltTargetfromClimbRate(wp_nav._pilot_desired_climb_rate, POSCONTROL_DT_100HZ);
 
 	updateZController();
-
 
 	// send throttle to attitude controller with angle boost
 	setThrottleOut(pos_control.throttle_in, 1, POSCONTROL_THROTTLE_CUTOFF_FREQ);
@@ -125,10 +129,10 @@ void checkSticksForAutoWPNav()
 	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;
 	float deadband_bottom = MID_STICK_THROTTLE - THROTTLE_DEADZONE;
 
-	if(rc_in[0] > deadband_bottom && rc_in[0] < deadband_bottom &&
-		rc_in[1] > deadband_bottom && rc_in[1] < deadband_bottom &&
-		rc_in[2] > deadband_bottom && rc_in[2] < deadband_bottom &&
-		rc_in[3] > deadband_bottom && rc_in[3] < deadband_bottom)
+	if(rc_in[0] > deadband_bottom && rc_in[0] < deadband_top &&
+		rc_in[1] > deadband_bottom && rc_in[1] < deadband_top &&
+		rc_in[2] > deadband_bottom && rc_in[2] < deadband_top &&
+		rc_in[3] > deadband_bottom && rc_in[3] < deadband_top)
 	{
 		if(wp_nav.count_wp_enable < AUTO_WPNAV_COUNT_THRESHOLD)
 			wp_nav.count_wp_enable++;
@@ -164,6 +168,10 @@ void getWPNavDesiredVelocity()
 		if(velocity_z_des < 0)
 			velocity_z_des = -WPNAV_WP_SPEED_DOWN;
 	}
+
+	getNavDesiredVelocity(velocity_xy_des);
+
+	wp_nav._pilot_desired_climb_rate = velocity_z_des;
 }
 
 void getPilotDesiredAcceleration()
@@ -228,10 +236,15 @@ void getPilotDesiredXYVelocity()
 			pilot_desired_vel.x = 0.0f;
 	}
 
-	float jerk_xy = pos_control.accel_cms * POSCONTROL_JERK_RATIO;
-
 	desired_vel.x = (pilot_desired_vel.x*ahrs.cos_psi - pilot_desired_vel.y*ahrs.sin_psi);
 	desired_vel.y = (pilot_desired_vel.x*ahrs.sin_psi + pilot_desired_vel.y*ahrs.cos_psi);
+
+	getNavDesiredVelocity(desired_vel);
+}
+
+void getNavDesiredVelocity(Vector2f desired_vel)
+{
+	float jerk_xy = pos_control.accel_cms * POSCONTROL_JERK_RATIO;
 
 	Vector2f vel_diff;
 	vel_diff.x = desired_vel.x - pos_control.vel_desired.x;
@@ -293,16 +306,16 @@ void getPilotClimbRate()
 	float deadband_bottom = MID_STICK_THROTTLE - THROTTLE_DEADZONE;
 
 	// ensure a reasonable throttle value
-	float throttle_control = constrain_float(rc_in[2],THROTTLE_MIN,THROTTLE_MAX);
+	float throttle_stick = constrain_float(rc_in[2],THROTTLE_MIN,THROTTLE_MAX);
 
 	// check throttle is above, below or in the deadband
-	if (throttle_control < deadband_bottom)
+	if (throttle_stick < deadband_bottom)
 	{
 		// below the deadband
-		desired_rate = wp_nav._pilot_max_z_velocity * (throttle_control-deadband_bottom) / (deadband_bottom-THROTTLE_MIN);
+		desired_rate = wp_nav._pilot_max_z_velocity * (throttle_stick-deadband_bottom) / (deadband_bottom-THROTTLE_MIN);
 	}else
-		if (throttle_control > deadband_top)
-	        desired_rate = wp_nav._pilot_max_z_velocity * (throttle_control-deadband_top) / (THROTTLE_MAX-deadband_top);
+		if (throttle_stick > deadband_top)
+	        desired_rate = wp_nav._pilot_max_z_velocity * (throttle_stick-deadband_top) / (THROTTLE_MAX-deadband_top);
 	    else{
 	        // must be in the deadband
 	        desired_rate = 0.0f;

@@ -461,9 +461,14 @@ void handleMessage(mavlink_message_t* msg)
     case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:
     {
     	mavlink_msg_set_position_target_local_ned_decode(msg, &local_position_target_ned);
-    	wp_nav.waypoint.x = inav.position.x + 100*local_position_target_ned.x;
-    	wp_nav.waypoint.y = inav.position.y + 100*local_position_target_ned.y;
-    	wp_nav.waypoint.z = inav.position.z + (-100)*local_position_target_ned.z;
+
+//    	wp_nav.waypoint.x = 100*local_position_target_ned.x;			//treat input as absolute targets. Origin is initialization point of GPS/CV
+//		wp_nav.waypoint.y = 100*local_position_target_ned.y;			//treat input as absolute targets
+//		wp_nav.waypoint.z = (-100)*local_position_target_ned.z;			//treat input as absolute targets
+
+    	wp_nav.waypoint.x = inav.position.x + 100*local_position_target_ned.x;			//treat input as relative targets
+    	wp_nav.waypoint.y = inav.position.y + 100*local_position_target_ned.y;			//treat input as relative targets
+    	wp_nav.waypoint.z = inav.position.z + (-100)*local_position_target_ned.z;		//treat input as relative targets
     	wp_nav.flag_waypoint_received = 1;
     	debug("Received waypoint [%.3f, %.3f, %.3f]", local_position_target_ned.x, local_position_target_ned.y, local_position_target_ned.z);
 

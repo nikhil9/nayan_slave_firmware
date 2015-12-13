@@ -140,10 +140,11 @@ typedef struct ap_waypoint_nav
 void updateLoiter(void);
 
 void initializeWPNav(void);
-void checkSticksForAutoWPNav();
+void checkSticksForAutoWPNav(void);
 
 void loiter_run(void);
 
+void getNavDesiredVelocity(Vector2f pilot_desired_vel);
 void getPilotDesiredXYVelocity(void);
 void getPilotDesiredAcceleration(void);
 void getPilotDesiredYawRate(void);
