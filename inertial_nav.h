@@ -33,7 +33,7 @@
 		// assuming a 150 ms delay for the baro data if the AHRS is called at 100Hz
 #define GPS_RADIUS_CM								400
 #define BARO_RADIUS_CM								250
-#define SONAR_RADIUS_CM								250
+#define SONAR_RADIUS_CM								450
 #define CV_RADIUS_CM								400
 #define MAX_ACCEL_CHANGE							8		// 80000cmss * 0.01
 #define MIN_ACCEL_MEASURED							1

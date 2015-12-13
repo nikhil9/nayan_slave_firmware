@@ -33,7 +33,7 @@ void initializePosController()
 	pos_control.pitch_target = 0.0f;
 	pos_control.accel_xy_filt_hz = POSCONTROL_ACCEL_FILTER_HZ;
 	pos_control.throttle_in_filter.cutoff_freq = POSCONTROL_THROTTLE_CUTOFF_FREQ;
-	pos_control.throttle_in_filter.output = MID_STICK_THROTTLE;
+	pos_control.throttle_in_filter.output = pos_control.throttle_hover;
 
 	initializeVector3fToZero(&pos_control.pos_target);
 	initializeVector3fToZero(&pos_control.pos_error);
@@ -58,12 +58,13 @@ void initializePosController()
 	pos_control.alt_max = POSTARGET_MAX_ALTITUDE;
 	pos_control.alt_min = POSTARGET_MIN_ALTITUDE;
 	pos_control.distance_to_target = 0.0f;
-	pos_control.vel_error_filter.cutoff_freq = POSCONTROL_VEL_ERROR_CUTOFF_FREQ;
 	pos_control.accel_target_jerk_limited.x = 0.0f;
 	pos_control.accel_target_jerk_limited.y = 0.0f;
-	pos_control.accel_target_filter_x.cutoff_freq = POSCONTROL_ACCEL_FILTER_HZ;
-	pos_control.accel_target_filter_y.cutoff_freq = POSCONTROL_ACCEL_FILTER_HZ;
 
+	initializeLPF(&pos_control.vel_error_filter, POSCONTROL_VEL_ERROR_CUTOFF_FREQ);
+	initializeLPF(&pos_control.accel_target_filter_x, POSCONTROL_ACCEL_FILTER_HZ);
+	initializeLPF(&pos_control.accel_target_filter_y, POSCONTROL_ACCEL_FILTER_HZ);
+	initializeLPF(&pos_control.throttle_in_filter, POSCONTROL_THROTTLE_CUTOFF_FREQ);
 	// initialise flags
 	pos_control._flags.recalc_leash_z = 1;
 	pos_control._flags.recalc_leash_xy = 1;
@@ -448,8 +449,8 @@ static void accelToThrottle(float accel_target_z)
 	debug_vec[0] = p;
 	debug_vec[1] = i;
 
-	debug("integral gain is %f, integral is %f, dt is %f", pos_control._pid_accel_z.kI,
-														i, pos_control._pid_accel_z.dt);
+//	debug("integral gain is %f, integral is %f, dt is %f", pos_control._pid_accel_z.kI,
+//														i, pos_control._pid_accel_z.dt);
 	pos_control.throttle_in = p+i+d+pos_control.throttle_hover;
 
 //	    _attitude_control.set_throttle_out(thr_out, true, POSCONTROL_THROTTLE_CUTOFF_FREQ);			//used in wp_nav.c loiter_run

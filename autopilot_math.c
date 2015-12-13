@@ -68,10 +68,10 @@ void pushToQueue(float data, float arr[], Queue_property *q_property)
 		q_property->is_full = 0;
 }
 
-void initializeLPF(LowPassFilter *lpf)
+void initializeLPF(LowPassFilter *lpf, float frequency)
 {
 	lpf->output = 0;
-	//TODO initialize frequency for the LPF
+	lpf->cutoff_freq = frequency;
 }
 
 float applyLPF(LowPassFilter *lpf, float input, float dt)

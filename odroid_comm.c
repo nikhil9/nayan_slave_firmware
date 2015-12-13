@@ -37,6 +37,7 @@ static mavlink_rc_channels_override_t rc_channels_override;
  * variables defined by atulya
  */
 static mavlink_vision_position_estimate_t vision_position_inp;
+static mavlink_set_position_target_local_ned_t local_position_target_ned;
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
@@ -153,9 +154,9 @@ static void send_hil_state(void)
 	mavlink_msg_hil_state_send(
 			MAVLINK_COMM_0,
 			millis(),
-			pos_control.pos_desired.x,
-			pos_control.pos_desired.y,
-			pos_control.pos_desired.z,
+			wp_nav.waypoint.x,
+			wp_nav.waypoint.y,
+			wp_nav.waypoint.z,
 			pos_control.vel_desired.x,
 			pos_control.vel_desired.y,
 			pos_control.vel_desired.z,
@@ -176,11 +177,6 @@ static void send_hil_state(void)
  */
 static void send_sim_state(void)
 {
-#if(USE_BARO_NOT_SONAR == 0)
-	float alt = sens_sonar.depth;
-#else
-	float alt = sens_baro.position.z;
-#endif
 	mavlink_msg_sim_state_send(
 			MAVLINK_COMM_0,
 			ic_rc_or_data.ic_rc.rc1,
@@ -361,7 +357,6 @@ void send_params(void){
  */
 void handleMessage(mavlink_message_t* msg)
 {
-
     switch (msg->msgid) {
 
     case MAVLINK_MSG_ID_HEARTBEAT:
@@ -372,7 +367,6 @@ void handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
      {
-
     	 palTogglePad(GPIOC, 1);
     	 mavlink_msg_rc_channels_override_decode(msg, &rc_channels_override);
 
@@ -447,9 +441,9 @@ void handleMessage(mavlink_message_t* msg)
 		*/
 
     	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
-    	sens_cv.position.x = 100*vision_position_inp.x;
+    	sens_cv.position.x = 100*vision_position_inp.x;				//M to CM
     	sens_cv.position.y = 100*vision_position_inp.y;
-    	sens_cv.position.z = -100*vision_position_inp.z;
+    	sens_cv.position.z = -100*vision_position_inp.z;			//NED to NEU so that altitude is positive
     	sens_cv.yaw = -vision_position_inp.roll;
     	sens_cv.obc_stamp = vision_position_inp.usec;
     	sens_cv.stamp = millis();
@@ -461,6 +455,17 @@ void handleMessage(mavlink_message_t* msg)
 		sens_sonar.obc_stamp = vision_position_inp.usec;
 		sens_sonar.stamp = sens_cv.stamp;
 		sens_sonar.depth = -100*vision_position_inp.z;
+
+    	break;
+    }
+    case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:
+    {
+    	mavlink_msg_set_position_target_local_ned_decode(msg, &local_position_target_ned);
+    	wp_nav.waypoint.x = inav.position.x + 100*local_position_target_ned.x;
+    	wp_nav.waypoint.y = inav.position.y + 100*local_position_target_ned.y;
+    	wp_nav.waypoint.z = inav.position.z + (-100)*local_position_target_ned.z;
+    	wp_nav.flag_waypoint_received = 1;
+    	debug("Received waypoint [%.3f, %.3f, %.3f]", local_position_target_ned.x, local_position_target_ned.y, local_position_target_ned.z);
 
     	break;
     }
@@ -482,7 +487,6 @@ void odroid_update(void )
     mavlink_status_t status;
     status.packet_rx_drop_count = 0;
 
-
     uint16_t nbytes = comm_get_available(MAVLINK_COMM_0);
 
     uint16_t i = 0;
@@ -491,8 +495,8 @@ void odroid_update(void )
     {
         uint8_t c = comm_receive_ch(MAVLINK_COMM_0);
 
-        if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
-
+        if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status))
+        {
             handleMessage(&msg);
         }
     }

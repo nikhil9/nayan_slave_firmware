@@ -31,7 +31,11 @@ void initializeWPNav()
 	wp_nav._last_pilot_update_ms = 0;
 
 	initializeVector2fToZero(&wp_nav._loiter_desired_accel);
+
 	initializeVector2fToZero(&wp_nav.waypoint);
+	wp_nav.flag_auto_wp_enable = 0;
+	wp_nav.flag_waypoint_received = 0;
+	wp_nav.count_wp_enable = 0;
 
 	wp_nav._wp_last_update = 0;
 	wp_nav._wp_step = 0;
@@ -54,8 +58,7 @@ void initializeWPNav()
 	wp_nav._flags.recalc_wp_leash = 0;
 	wp_nav._flags.new_wp_destination = 0;
 
-	initializeLPF(&wp_nav.channel6_filter);
-	wp_nav.channel6_filter.cutoff_freq = 0.8;
+	initializeLPF(&wp_nav.channel6_filter, 0.8);
 }
 
 void loiter_run()
@@ -70,8 +73,31 @@ void loiter_run()
 		if (dt >= 0.2f) {
 			dt = 0.0f;
 		}
-		getPilotDesiredXYVelocity();
-//		getPilotDesiredAcceleration();
+
+		checkSticksForAutoWPNav();
+
+		//initiate AUTO_WPNAV mode if sticks have been idle and a new waypoint is available
+		if(wp_nav.count_wp_enable == AUTO_WPNAV_COUNT_THRESHOLD && wp_nav.flag_waypoint_received == 1)
+		{
+			wp_nav.flag_waypoint_received = 0;
+			wp_nav.flag_auto_wp_enable = 1;
+		}
+
+		//DISABLE AUTO_WPNAV mode if sticks have been disturbed
+		// (if previously it was enabled it will be disabled in AUTO_WPNAV_COUNT_THRESHOLD/4*0.02 seconds)
+		if(wp_nav.count_wp_enable < AUTO_WPNAV_COUNT_THRESHOLD*3.0/4)
+			wp_nav.flag_auto_wp_enable = 0;
+
+		if(wp_nav.flag_auto_wp_enable == 1)
+		{
+			getWPNavDesiredVelocity();
+		}
+		else
+		{
+			getPilotDesiredXYVelocity();
+//			getPilotDesiredAcceleration();
+		}
+
 		getPilotDesiredYawRate();
 		getPilotClimbRate();
 
@@ -92,15 +118,52 @@ void loiter_run()
 
 }
 
-void getNavDesiredAcceleration()
+
+//check if auto mode has been enabled
+void checkSticksForAutoWPNav()
 {
-	Vector2f desired_accel;
-	desired_accel.x = pow(OMEGA,2)*(wp_nav.waypoint.x - pos_control.pos_target.x) -2*TAU*pos_control.vel_desired.x;
-	desired_accel.y = pow(OMEGA,2)*(wp_nav.waypoint.y - pos_control.pos_target.y) -2*TAU*pos_control.vel_desired.y;
+	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;
+	float deadband_bottom = MID_STICK_THROTTLE - THROTTLE_DEADZONE;
 
-	wp_nav._pilot_accel_fwd_cms =  desired_accel.x*ahrs.cos_psi + desired_accel.y*ahrs.sin_psi;
-	wp_nav._pilot_accel_rgt_cms = -desired_accel.x*ahrs.sin_psi + desired_accel.y*ahrs.cos_psi;
+	if(rc_in[0] > deadband_bottom && rc_in[0] < deadband_bottom &&
+		rc_in[1] > deadband_bottom && rc_in[1] < deadband_bottom &&
+		rc_in[2] > deadband_bottom && rc_in[2] < deadband_bottom &&
+		rc_in[3] > deadband_bottom && rc_in[3] < deadband_bottom)
+	{
+		if(wp_nav.count_wp_enable < AUTO_WPNAV_COUNT_THRESHOLD)
+			wp_nav.count_wp_enable++;
+	}
+	else
+	{
+		if(wp_nav.count_wp_enable > 0)
+			wp_nav.count_wp_enable--;
+	}
+}
 
+// generate new velocities for waypoints if stick is at mid
+void getWPNavDesiredVelocity()
+{
+	Vector2f velocity_xy_des;
+	float velocity_z_des;
+
+	velocity_xy_des.x = WPNAV_Kp_POS_XY * (wp_nav.waypoint.x - pos_control.pos_target.x);
+	velocity_xy_des.y = WPNAV_Kp_POS_XY * (wp_nav.waypoint.y - pos_control.pos_target.y);
+	velocity_z_des = WPNAV_Kp_POS_Z * (wp_nav.waypoint.z - pos_control.pos_target.z);
+
+	float vel_xy = normVec2f(velocity_xy_des);
+	if(vel_xy > WPNAV_LOITER_SPEED_MIN && vel_xy > 0)
+	{
+		velocity_xy_des.x = velocity_xy_des.x * WPNAV_LOITER_SPEED_MIN/vel_xy;
+		velocity_xy_des.y = velocity_xy_des.y * WPNAV_LOITER_SPEED_MIN/vel_xy;
+	}
+
+	if(abs(velocity_z_des) > WPNAV_WP_SPEED_DOWN && abs(velocity_z_des)>0)
+	{
+		if(velocity_z_des > 0)
+			velocity_z_des = WPNAV_WP_SPEED_DOWN;
+		if(velocity_z_des < 0)
+			velocity_z_des = -WPNAV_WP_SPEED_DOWN;
+	}
 }
 
 void getPilotDesiredAcceleration()
@@ -116,9 +179,6 @@ void getPilotDesiredAcceleration()
 	if(abs(control_roll) < STICK_DEADBAND)
 		control_roll = 0;
 
-	control_pitch = 0;	// TODO override added to check without remote feedback
-	control_roll = 0;
-
 	wp_nav._pilot_accel_fwd_cms = -control_pitch * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 	wp_nav._pilot_accel_rgt_cms = control_roll * wp_nav._loiter_accel_cmss / ((STICK_MAX-STICK_MIN)/2);
 }
@@ -130,6 +190,20 @@ void getPilotDesiredXYVelocity()
 
 	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;
 	float deadband_bottom = MID_STICK_THROTTLE - THROTTLE_DEADZONE;
+
+	//failsafe to detect any unwanted output
+	if(isnan(rc_in[0])|| isnan(rc_in[1]))
+		return;
+
+	if(isinf(rc_in[0])|| isinf(rc_in[1]))
+		return;
+
+	if(rc_in[0] < THROTTLE_MIN || rc_in[0] > THROTTLE_MAX)
+		return;
+
+	if(rc_in[1] < THROTTLE_MIN || rc_in[1] > THROTTLE_MAX)
+		return;
+
 
 	stick_roll = constrain_float(rc_in[0],THROTTLE_MIN,THROTTLE_MAX);
 	stick_pitch = constrain_float(rc_in[1],THROTTLE_MIN,THROTTLE_MAX);
@@ -169,7 +243,6 @@ void getPilotDesiredXYVelocity()
 //															pos_control.vel_desired.x, pos_control.vel_desired.y,
 //															ahrs.attitude.z);
 
-
 	float accel_xy_max = min(pos_control.accel_cms, sqrt(2.0f*fabsf(normVec2f(vel_diff))*jerk_xy));
 
 	pos_control.accel_last_xy_cms += jerk_xy * wp_nav._dt_pilot_inp;
@@ -190,13 +263,30 @@ void getPilotDesiredXYVelocity()
 
 void getPilotDesiredYawRate()
 {
-	//TODO check these formulae for errors
+	if(isnan(rc_in[3]))
+		return;
+
+	if(isinf(rc_in[3]))
+		return;
+
+	if(rc_in[3] < THROTTLE_MIN || rc_in[3] > THROTTLE_MAX)
+		return;
+
 	int16_t control_yaw_rate = constrain_int(rc_in[3], STICK_MIN, STICK_MAX);
 	wp_nav._pilot_desired_yaw_rate = (control_yaw_rate - STICK_MID)*STICK_TO_DEGREEPS;
 }
 
 void getPilotClimbRate()
 {
+	if(isnan(rc_in[2]))
+		return;
+
+	if(isinf(rc_in[2]))
+		return;
+
+	if(rc_in[2] < THROTTLE_MIN || rc_in[2] > THROTTLE_MAX)
+		return;
+
 	float desired_rate;
 
 	float deadband_top = MID_STICK_THROTTLE + THROTTLE_DEADZONE;

@@ -661,7 +661,7 @@
  # define ACCEL_Z_D     0.0f
 #endif
 #ifndef ACCEL_Z_IMAX
- # define ACCEL_Z_IMAX  800
+ # define ACCEL_Z_IMAX  200			//IGNORE changed by atulya
 #endif
 #ifndef ACCEL_Z_FILT_HZ
  # define ACCEL_Z_FILT_HZ   20.0f

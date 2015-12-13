@@ -28,8 +28,8 @@
 #define RP_OUTPUT_MIN							1300
 #define YAW_OUTPUT_MAX							1800
 #define YAW_OUTPUT_MIN							1200
-#define DEGREEPS_TO_STICK						10		//TODO correct this on the basis of what is present in wp_nav
-#define STICK_TO_DEGREEPS						0.1f	//TODO just a speculation check it
+#define DEGREEPS_TO_STICK						10.0		//TODO correct this and below on the basis of a collection of some data validations
+#define STICK_TO_DEGREEPS						0.1f
 #define PILOT_INPUT_DT_50HZ						0.02f
 #define OMEGA									2.5
 #define TAU										1
@@ -65,6 +65,10 @@
 
 #define WPNAV_YAW_DIST_MIN                 200      // minimum track length which will lead to target yaw being updated to point at next waypoint.  Under this distance the yaw target will be frozen at the current heading
 
+#define AUTO_WPNAV_COUNT_THRESHOLD			100		// IGNORE at 50Hz stick input the sticks must be in idle stage for 2 secs for AUTO_WPNAV to be active
+
+#define WPNAV_Kp_POS_XY						0.8		// IGNORE velocity inputs for waypoint navigation
+#define WPNAV_Kp_POS_Z						0.5		// IGNORE velocity inputs for z reference hold in waypoint navigation
 
 typedef struct ap_waypoint_nav
 {
@@ -97,7 +101,13 @@ typedef struct ap_waypoint_nav
     float		_pilot_max_xy_speed; 	//max horizontal speed from the pilot	IGNORE added by atulya
     float		_nav_accel_desired_x;	// required acceleration to maintain a desired point IGNORE added by atulya
     float		_nav_accel_desired_y;	// required acceleration to maintain a desired point IGNORE added by atulya
-    Vector2f	waypoint;				// target waypoint for the system
+
+    Vector3f	waypoint;				// target waypoint for the system IGNORE added by atulya
+    int 		count_wp_enable;		// IGNORE this is incremented when the RPT sticks are in MID + deadzone and when a
+										// specific count is reached then AUTO_WPNAV is activated(velocity commands based on waypoints)
+    int 		flag_auto_wp_enable;	// 1 when AUTO_WPNAV is active 0 otherwise
+    int 		flag_waypoint_received; // 1 if a new waypoint has been received 0 otherwise
+
     uint32_t	_last_pilot_update_ms;	//timestamp of the last update performed by the pilot inputs to the loiter code IGNORE
     float		_dt_pilot_inp;			//time duration in which to check the pilot input
     Vector2f    _loiter_desired_accel;  // slewed pilot's desired acceleration in lat/lon frame
@@ -130,6 +140,7 @@ typedef struct ap_waypoint_nav
 void updateLoiter(void);
 
 void initializeWPNav(void);
+void checkSticksForAutoWPNav();
 
 void loiter_run(void);
 
@@ -138,6 +149,6 @@ void getPilotDesiredAcceleration(void);
 void getPilotDesiredYawRate(void);
 void getPilotClimbRate(void);
 
-void getNavDesiredAcceleration(void);
+void getWPNavDesiredAcceleration(void);
 
 #endif /* WP_NAV_H_ */

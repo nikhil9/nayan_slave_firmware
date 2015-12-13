@@ -132,8 +132,6 @@ typedef struct
 
 	LowPassFilter throttle_in_filter;		//IGNORE added by atulya
 
-	Vector3f pos_desired;
-
 }Position_Controller;
 
 void initializePosController(void);
@@ -146,9 +144,6 @@ void setAltTargetfromClimbRate(float climb_rate_cms, float dt);
 
 void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz);
 
-/**
- * @brief updates the position controller on the basis of feedback from INAV and using the desired position and velocity from above TODO
- */
 void updateXYController(int mode, int use_althold_lean_angle);
 
 void updateZController(void);

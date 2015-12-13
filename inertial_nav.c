@@ -168,7 +168,7 @@ static int isGPSGlitching(void)
 	}
 	else
 	{
-		debug("GPS glitched. previous is (%f, %f); Current CV is (%f, %f)",
+		debug("GPS glitched. previous is (%f, %f); Current is (%f, %f)",
 										inav.last_good_lat*1e-7, inav.last_good_lng*1e-7,
 										sens_gps.lat*1e-7, sens_gps.lng*1e-7);
 	}
@@ -752,8 +752,9 @@ void initINAV()
 	initializeGPSHome();
 #endif
 
-	//TODO UNNECESSARY initialize other variables
+	//TODO find out if initialization with some initial values and averagin is useful
 	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
+	initializeVector3fToZero(&inav.accel_correction_hbf);
 	initializeAlt();
 
 }
@@ -786,8 +787,6 @@ void resetINAV()
 	//initialize IMU
 	inav.last_good_imu = sens_imu.accel_calib;
 
-	//TODO UNNECESSARY initialize other variables
-	//acceleration_correction_hbf remaining :  can be initialized by considering some intial values OR maybe be left to converge
 	inav.sonar_last = 0;
 	inav.sonar_last_update = 0;
 	initializeAlt();
@@ -896,7 +895,6 @@ void updateINAV(uint32_t del_t)
 	velocity_increase.x = (accel_ef.x + accel_correction_ef.x) * dt;
 	velocity_increase.y = (accel_ef.y + accel_correction_ef.y) * dt;
 	velocity_increase.z = (accel_ef.z + inav.accel_correction_hbf.z) * dt;
-//	q[3] = accel_ef.z;
 
 	// calculate new estimate of position
 	inav.position_base.x += (inav.velocity.x + velocity_increase.x*0.5) * dt;
