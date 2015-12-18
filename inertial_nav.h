@@ -153,7 +153,7 @@ void updateAHRS(void);
 /**
  * @brief automatically initialize the home position depending on the current position
  */
-void initializeHome(void);
+void initializeGPSHome(void);
 
 void initializeAlt(void);
 /**

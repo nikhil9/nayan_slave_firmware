@@ -17,8 +17,34 @@
 #include "ch.h"
 #include "hal.h"
 #include "Setup.h"
+
+//=================ADDITION FROM MAVLINK====================
+
 #include "mavlink_types.h"
+
+#ifndef MAVLINK_USE_CONVENIENCE_FUNCTIONS
+#define MAVLINK_USE_CONVENIENCE_FUNCTIONS
+#endif
+
+static mavlink_system_t mavlink_system;
+
+static void comm_send_ch(mavlink_channel_t chan, uint8_t ch)
+{
+    if (chan == MAVLINK_COMM_0)
+    {
+//        uart0_transmit(ch);
+    	sdPut(&SDU1, ch );
+    }
+//    if (chan == MAVLINK_COMM_1)
+//    {
+//    	uart1_transmit(ch);
+//    }
+}
+
 #include "OS_PORT/ext/mavlink/v1.0/common/mavlink.h"
+
+//==========================================================
+
 #include "intercomm.h"
 #include "main.h"
 #include "params.h"
@@ -26,8 +52,6 @@
 const float MILLIG_TO_MS2 = 9.80665f / 1000.0f;
 const float MS2_TO_MILLIG = 1000.0f/9.80665f;
 const float RAD_TO_MILLIRAD = 1000.0f;
-
-mavlink_system_t mavlink_system;
 
 static mavlink_param_set_t param_set;
 
@@ -462,13 +486,13 @@ void handleMessage(mavlink_message_t* msg)
     {
     	mavlink_msg_set_position_target_local_ned_decode(msg, &local_position_target_ned);
 
-//    	wp_nav.waypoint.x = 100*local_position_target_ned.x;			//treat input as absolute targets. Origin is initialization point of GPS/CV
-//		wp_nav.waypoint.y = 100*local_position_target_ned.y;			//treat input as absolute targets
-//		wp_nav.waypoint.z = (-100)*local_position_target_ned.z;			//treat input as absolute targets
+    	wp_nav.waypoint.x = 100*local_position_target_ned.x;			//treat input as absolute targets. Origin is initialization point of GPS/CV
+		wp_nav.waypoint.y = 100*local_position_target_ned.y;			//treat input as absolute targets
+		wp_nav.waypoint.z = (-100)*local_position_target_ned.z;			//treat input as absolute targets
 
-    	wp_nav.waypoint.x = inav.position.x + 100*local_position_target_ned.x;			//treat input as relative targets
-    	wp_nav.waypoint.y = inav.position.y + 100*local_position_target_ned.y;			//treat input as relative targets
-    	wp_nav.waypoint.z = inav.position.z + (-100)*local_position_target_ned.z;		//treat input as relative targets
+//    	wp_nav.waypoint.x = inav.position.x + 100*local_position_target_ned.x;			//treat input as relative targets
+//    	wp_nav.waypoint.y = inav.position.y + 100*local_position_target_ned.y;			//treat input as relative targets
+//    	wp_nav.waypoint.z = inav.position.z + (-100)*local_position_target_ned.z;		//treat input as relative targets
     	wp_nav.flag_waypoint_received = 1;
     	debug("Received waypoint [%.3f, %.3f, %.3f]", local_position_target_ned.x, local_position_target_ned.y, local_position_target_ned.z);
 
@@ -529,8 +553,9 @@ static msg_t mavlinkReceive(void *arg) {
 void odroid_comm_init(void){
 
 	mavlink_system.sysid = 1;
+//	mavlink_system.compid = 1;
 
-	mavlink_system.type = 2;
+//	mavlink_system.type = 2;		// present in previous version
 
 	chThdCreateStatic(mavlinkReceiveThread, sizeof(mavlinkReceiveThread), NORMALPRIO, mavlinkReceive, NULL);
 	chThdCreateStatic(mavlinkSendThread, sizeof(mavlinkSendThread), NORMALPRIO, mavlinkSend, NULL);

@@ -632,7 +632,7 @@ static void checkSonar(void)
 
 void initializeGPSHome()
 {
-	bool flag_GPS_HOME_FOUND = 0;
+	bool flag_GPS_HOME_FOUND = 1;
 	while(!flag_GPS_HOME_FOUND)
 	{
 		//wait till a location close to 50KM radius of IITK is found from GPS

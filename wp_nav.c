@@ -32,7 +32,7 @@ void initializeWPNav()
 
 	initializeVector2fToZero(&wp_nav._loiter_desired_accel);
 
-	initializeVector2fToZero(&wp_nav.waypoint);
+	initializeVector3fToZero(&wp_nav.waypoint);
 	wp_nav.flag_auto_wp_enable = 0;
 	wp_nav.flag_waypoint_received = 0;
 	wp_nav.count_wp_enable = 0;
@@ -144,7 +144,7 @@ void checkSticksForAutoWPNav()
 	}
 }
 
-// generate new velocities for waypoints if stick is at mid
+// generate new velocities for waypoints if sticks are at mid positions
 void getWPNavDesiredVelocity()
 {
 	Vector2f velocity_xy_des;

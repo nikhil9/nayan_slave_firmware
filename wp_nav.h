@@ -150,6 +150,6 @@ void getPilotDesiredAcceleration(void);
 void getPilotDesiredYawRate(void);
 void getPilotClimbRate(void);
 
-void getWPNavDesiredAcceleration(void);
+void getWPNavDesiredVelocity(void);
 
 #endif /* WP_NAV_H_ */
