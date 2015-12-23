@@ -31,7 +31,6 @@ void initializeWPNav()
 	wp_nav._last_pilot_update_ms = 0;
 
 	initializeVector2fToZero(&wp_nav._loiter_desired_accel);
-
 	initializeVector3fToZero(&wp_nav.waypoint);
 	wp_nav.flag_auto_wp_enable = 0;
 	wp_nav.flag_waypoint_received = 0;

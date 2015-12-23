@@ -54,7 +54,6 @@ const float MS2_TO_MILLIG = 1000.0f/9.80665f;
 const float RAD_TO_MILLIRAD = 1000.0f;
 
 static mavlink_param_set_t param_set;
-
 static mavlink_rc_channels_override_t rc_channels_override;
 
 /**
@@ -66,9 +65,9 @@ static mavlink_set_position_target_local_ned_t local_position_target_ned;
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_heart_beat(void){
+static void send_heart_beat(mavlink_channel_t chan){
 
-	mavlink_msg_heartbeat_send(MAVLINK_COMM_0,
+	mavlink_msg_heartbeat_send(chan,
 			2,
 			0,
 		MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
@@ -79,9 +78,9 @@ static void send_heart_beat(void){
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_scaled_imu(void){
+static void send_scaled_imu(mavlink_channel_t chan){
 
-	mavlink_msg_scaled_imu_send(MAVLINK_COMM_0,
+	mavlink_msg_scaled_imu_send(chan,
 			  millis(),
 			  (int16_t)(sens_imu.accel_calib.x*MS2_TO_MILLIG),
 			  (int16_t)(sens_imu.accel_calib.y*MS2_TO_MILLIG),
@@ -97,10 +96,10 @@ static void send_scaled_imu(void){
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_attitude(void){
+static void send_attitude(mavlink_channel_t chan){
 
 	mavlink_msg_attitude_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
 			ahrs.attitude.x,
 			ahrs.attitude.y,
@@ -113,10 +112,10 @@ static void send_attitude(void){
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_gps(void){
+static void send_gps(mavlink_channel_t chan){
 
 	mavlink_msg_global_position_int_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
 			sens_gps.lat,						//sending out raw gps data as received from LLP
 			sens_gps.lng,
@@ -131,9 +130,9 @@ static void send_gps(void){
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_rc_in(void){
+static void send_rc_in(mavlink_channel_t chan){
     mavlink_msg_rc_channels_raw_send(
-    	MAVLINK_COMM_0,
+    	chan,
         millis(),
         0, // port
         rc_in[0],								//sending out raw RC input data as received from LLP
@@ -147,11 +146,11 @@ static void send_rc_in(void){
         -1);
 }
 
-static void send_local_position_ned(void)
+static void send_local_position_ned(mavlink_channel_t chan)
 {
 #if (USE_BARO_NOT_SONAR == 1)
 	mavlink_msg_local_position_ned_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
 			local_x_cm,
 			local_y_cm,
@@ -161,7 +160,7 @@ static void send_local_position_ned(void)
 			0);
 #else
 	mavlink_msg_local_position_ned_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
 			local_x_cm,
 			sens_cv.position.y,
@@ -173,10 +172,10 @@ static void send_local_position_ned(void)
 }
 
 //TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
-static void send_hil_state(void)
+static void send_hil_state(mavlink_channel_t chan)
 {
 	mavlink_msg_hil_state_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
 			wp_nav.waypoint.x,
 			wp_nav.waypoint.y,
@@ -199,10 +198,10 @@ static void send_hil_state(void)
 /**
  * changes made by atulya
  */
-static void send_sim_state(void)
+static void send_sim_state(mavlink_channel_t chan)
 {
 	mavlink_msg_sim_state_send(
-			MAVLINK_COMM_0,
+			chan,
 			ic_rc_or_data.ic_rc.rc1,
 			ic_rc_or_data.ic_rc.rc2,
 			ic_rc_or_data.ic_rc.rc3,
@@ -246,11 +245,11 @@ static msg_t mavlinkSend(void *arg) {
   uint16_t sim_state_cnt = 1;
   uint16_t hil_cnt = 2;
 
-
   while (TRUE) {
 
 	  if(hbt_cnt > 200){
-		  send_heart_beat();
+		  send_heart_beat(MAVLINK_COMM_0);
+		  send_heart_beat(MAVLINK_COMM_1);
 		  hbt_cnt = 0;
 	  }
 
@@ -259,33 +258,44 @@ static msg_t mavlinkSend(void *arg) {
 	  if(gps_cnt > 3)
 	  {
 		  if(local_cnt == 0)
-			  send_gps();
+		  {
+			  send_gps(MAVLINK_COMM_0);
+			  send_gps(MAVLINK_COMM_1);
+		  }
 		  if(local_cnt == 1)
-			  send_rc_in();
+		  {
+			  send_rc_in(MAVLINK_COMM_0);
+			  send_rc_in(MAVLINK_COMM_1);
+		  }
 		  if(local_cnt == 2)
-			  send_local_position_ned();
+		  {
+			  send_local_position_ned(MAVLINK_COMM_0);
+			  send_local_position_ned(MAVLINK_COMM_1);
+
+		  }
 
 		  local_cnt = (local_cnt + 1)%3;
 		  gps_cnt = 0;
 	  }
 
-
 	  if(imu_cnt > 3)
 	  {
-		  send_scaled_imu();
-		  send_attitude();
+		  send_scaled_imu(MAVLINK_COMM_0);
+		  send_attitude(MAVLINK_COMM_0);
+		  send_scaled_imu(MAVLINK_COMM_1);
+		  send_attitude(MAVLINK_COMM_1);
 		  imu_cnt = 0;
 	  }
 
 //	  if(sim_state_cnt > 3)				//TODO change the sending rates after the debugging stage
 //	  {
-		  send_sim_state();
+		  send_sim_state(MAVLINK_COMM_0);
 //		  sim_state_cnt = 0;
 //	  }
 
 //	  if(hil_cnt > 3)
 //	  {
-		  send_hil_state();
+		  send_hil_state(MAVLINK_COMM_0);
 //		  hil_cnt = 0;
 //	  }
 		  gps_cnt++;
@@ -349,37 +359,37 @@ uint8_t comm_receive_ch(mavlink_channel_t chan)
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-void send_params(void){
+void send_params(mavlink_channel_t chan){
 	mavlink_msg_param_value_send(
-					 MAVLINK_COMM_0,
+					 chan,
 					 sysid_thismav,
-					 1,
+					 SYSID,
 					 MAVLINK_TYPE_UINT8_T,
 					 PARAM_COUNT,
 					 sysid_thismav_index);
 
 	mavlink_msg_param_value_send(
-					 MAVLINK_COMM_0,
+					 chan,
 					 sysid_sw_type,
-					 10,
+					 SW_TYPE,
 					 MAVLINK_TYPE_UINT8_T,
 					 PARAM_COUNT,
 					 sysid_sw_type_index);
 
 	mavlink_msg_param_value_send(
-					 MAVLINK_COMM_0,
+					 chan,
 					 sysid_mygcs,
-					 255,
+					 MY_GCS,
 					 MAVLINK_TYPE_UINT8_T,
 					 PARAM_COUNT,
 					 sysid_mygcs_index);
-	FWparamQSend();
+	FWparamQSend(chan);
 }
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-void handleMessage(mavlink_message_t* msg)
+void handleMessage(mavlink_message_t* msg, mavlink_channel_t chan)
 {
     switch (msg->msgid) {
 
@@ -407,7 +417,7 @@ void handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
     {
-    	send_params();
+    	send_params(chan);
     	break;
     }
 
@@ -423,13 +433,13 @@ void handleMessage(mavlink_message_t* msg)
           /* enforce null termination */
           name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
           /* attempt to find parameter, set and send it */
-          resendParamMavLink(name, cmd.param_index);
+          resendParamMavLink(chan, name, cmd.param_index);
           break;
       }
 
     case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
     {
-    	mavlink_msg_mission_count_send(MAVLINK_COMM_0, 1, 0, 0);
+    	mavlink_msg_mission_count_send(chan, 1, 0, 0);
     	break;
     }
     case MAVLINK_MSG_ID_PARAM_SET:
@@ -442,7 +452,7 @@ void handleMessage(mavlink_message_t* msg)
 		/* enforce null termination */
 		name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
 		/* attempt to find parameter, set and send it */
-		FWupdateParamMavLink(name, param_set.param_value);
+		FWupdateParamMavLink(chan, name, param_set.param_value);
 		break;
     }
     /**
@@ -511,22 +521,34 @@ void handleMessage(mavlink_message_t* msg)
 
 void odroid_update(void )
 {
+    mavlink_message_t msg_ch0, msg_ch1;
+    mavlink_status_t status_ch0, status_ch1;
+    status_ch0.packet_rx_drop_count = 0;
+    status_ch1.packet_rx_drop_count = 0;
 
-    mavlink_message_t msg;
-    mavlink_status_t status;
-    status.packet_rx_drop_count = 0;
-
-    uint16_t nbytes = comm_get_available(MAVLINK_COMM_0);
-
+    // Deal with channel 0
+    uint16_t nbytes_ch0 = comm_get_available(MAVLINK_COMM_0);
     uint16_t i = 0;
-
-    for (i = 0; i<nbytes; i++)
+    for (i = 0; i<nbytes_ch0; i++)
     {
         uint8_t c = comm_receive_ch(MAVLINK_COMM_0);
 
-        if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status))
+        if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg_ch0, &status_ch0))
         {
-            handleMessage(&msg);
+            handleMessage(&msg_ch0, MAVLINK_COMM_0);
+        }
+    }
+
+    // Deal with channel 1
+    uint16_t nbytes_ch1 = comm_get_available(MAVLINK_COMM_1);
+    i = 0;
+    for (i = 0; i<nbytes_ch1; i++)
+    {
+        uint8_t c = comm_receive_ch(MAVLINK_COMM_1);
+
+        if (mavlink_parse_char(MAVLINK_COMM_1, c, &msg_ch1, &status_ch1))
+        {
+            handleMessage(&msg_ch1, MAVLINK_COMM_1);
         }
     }
 }
@@ -541,7 +563,7 @@ static msg_t mavlinkReceive(void *arg) {
   chRegSetThreadName("mavlinkReceive");
 
   while (TRUE) {
-	  odroid_update();
+	  odroid_update();//maybe do alternate between odroid and gcs
 	  delay(10);
   }
   return 0;
@@ -552,7 +574,7 @@ static msg_t mavlinkReceive(void *arg) {
 
 void odroid_comm_init(void){
 
-	mavlink_system.sysid = 1;
+	mavlink_system.sysid = SYSID;
 //	mavlink_system.compid = 1;
 
 //	mavlink_system.type = 2;		// present in previous version

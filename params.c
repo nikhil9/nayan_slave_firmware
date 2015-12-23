@@ -28,8 +28,8 @@ const char vel_xy_imax[16] = "VEL_XY_IMAX";
 
 const char pos_z_p[16] = "POS_Z_P";
 const char vel_z_p[16] = "VEL_Z_P";
-const char accel_z_p[16] = "ACCEL_Z_P";
-const char accel_z_i[16] = "ACCEL_Z_I";
+const char accel_z_p[16] = "THR_ACCEL_P";
+const char accel_z_i[16] = "THR_ACCEL_I";
 const char accel_z_imax[16] = "ACCEL_Z_IMAX";
 const char accel_z_d[16] = "ACCEL_Z_D";
 const char accel_z_filt_hz[16] = "ACCEL_Z_FILT_HZ";
