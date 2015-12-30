@@ -632,7 +632,7 @@ static void checkSonar(void)
 
 void initializeGPSHome()
 {
-	bool flag_GPS_HOME_FOUND = 1;
+	bool flag_GPS_HOME_FOUND = 0;
 	while(!flag_GPS_HOME_FOUND)
 	{
 		//wait till a location close to 50KM radius of IITK is found from GPS
@@ -913,7 +913,6 @@ void updateINAV(uint32_t del_t)
 	inav.velocity.x += velocity_increase.x;
 	inav.velocity.y += velocity_increase.y;
 	inav.velocity.z += velocity_increase.z;
-//	debug_vec[2] = velocity_increase.z;
 
 //	debug("velocity is %.2f, velocity increase is %.2f", inav.velocity.z, velocity_increase.z);
 

@@ -67,24 +67,27 @@ void update_ic_data(void){
 
 	uint32_t stamp = millis();
 	sens_imu.stamp = stamp;
+
+	//acceleration outputs in m/s2 in NED body frame
 	sens_imu.accel_calib.x = ic_imu_data.ic_imu.ax;
 	sens_imu.accel_calib.y = ic_imu_data.ic_imu.ay;
 	sens_imu.accel_calib.z = ic_imu_data.ic_imu.az;
 
+	//angular velocity outputs in NED body frame
 	sens_imu.gyro_calib.x = ic_imu_data.ic_imu.gx;
 	sens_imu.gyro_calib.y = ic_imu_data.ic_imu.gy;
 	sens_imu.gyro_calib.z = ic_imu_data.ic_imu.gz;
 
+	//attitude Roll, Pitch and Yaw as calculated about NED frame
 	sens_imu.attitude.x = ic_imu_data.ic_imu.roll;
 	sens_imu.attitude.y = ic_imu_data.ic_imu.pitch;
 	sens_imu.attitude.z = ic_imu_data.ic_imu.yaw;
 
+	//GPS latitude(in degrees)*1e7; longitude(in degrees)*1e7 ; altitude(in cm)
 	Vector3f _position_gps;
 	_position_gps.x = ic_imu_data.ic_imu.lat;
 	_position_gps.y = ic_imu_data.ic_imu.lng;
 	_position_gps.z = ic_imu_data.ic_imu.alt;
-
-	//TODO on 24th OCT the rc channel 6 and 7 were switched hence take care of them too
 
 	if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
 	{
@@ -97,10 +100,12 @@ void update_ic_data(void){
 		sens_baro.position.z = _position_gps.z;
 	}
 
+	//velocity as processed by the LLP
 	velocity.x = ic_imu_data.ic_imu.vx;
 	velocity.y = ic_imu_data.ic_imu.vy;
 	velocity.z = ic_imu_data.ic_imu.vz;
 
+	//RC channel inputs as obtained from transmitter corresponding to channels 1 to 7
 	rc_in[0] = ic_imu_data.ic_imu.rc_in_1;
 	rc_in[1] = ic_imu_data.ic_imu.rc_in_2;
 	rc_in[2] = ic_imu_data.ic_imu.rc_in_3;

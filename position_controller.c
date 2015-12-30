@@ -66,6 +66,7 @@ void initializePosController()
 	initializeLPF(&pos_control.accel_target_filter_y, POSCONTROL_ACCEL_FILTER_HZ);
 	initializeLPF(&pos_control.throttle_in_filter, POSCONTROL_THROTTLE_CUTOFF_FREQ);
 	// initialise flags
+
 	pos_control._flags.recalc_leash_z = 1;
 	pos_control._flags.recalc_leash_xy = 1;
 	pos_control._flags.reset_desired_vel_to_pos = 1;
@@ -527,16 +528,16 @@ static void rateToAccelZ(void)
 		pos_control.vel_error.z = applyLPF(&pos_control.vel_error_filter, pos_control.vel_target.z - curr_vel.z, pos_control.dt);
 //		debug("applying lpf with freq%f: old val:%f; new_val%f, with dt:%f GIVES %f",pos_control.vel_error_filter.cutoff_freq,
 //				pos_control.vel_error_filter.output, pos_control.vel_target.z - curr_vel.z, pos_control.dt, pos_control.vel_error.z);
-	    }
+	}
 
-	    // calculate p
-	    p = pos_control._p_vel_z.kP * pos_control.vel_error.z;
+	// calculate p
+	p = pos_control._p_vel_z.kP * pos_control.vel_error.z;
 
-	    // consolidate and constrain target acceleration
-	    pos_control.accel_target.z = pos_control.accel_feedforward.z + p;
+	// consolidate and constrain target acceleration
+	pos_control.accel_target.z = pos_control.accel_feedforward.z + p;
 
-	    // set target for accel based throttle controller
-	    accelToThrottle(pos_control.accel_target.z);
+	// set target for accel based throttle controller
+	accelToThrottle(pos_control.accel_target.z);
 
 }
 
@@ -687,7 +688,6 @@ void setThrottleOut(float throttle_in, uint8_t apply_angle_boost, float filt_hz)
 	//TODO check filt_hz and angle_boost
 	pos_control.throttle_in_filter.cutoff_freq = filt_hz;
 	throttle_in = applyLPF(&pos_control.throttle_in_filter, throttle_in, POSCONTROL_DT_100HZ);
-	debug_vec[2] = throttle_in;
 
 	float cos_tilt = ahrs.cos_theta * ahrs.cos_phi;
 	float boost_factor = 1.0f/constrain_float(cos_tilt, 0.5f, 1.0f);

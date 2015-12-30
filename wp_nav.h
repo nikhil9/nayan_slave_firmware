@@ -103,6 +103,9 @@ typedef struct ap_waypoint_nav
     float		_nav_accel_desired_y;	// required acceleration to maintain a desired point IGNORE added by atulya
 
     Vector3f	waypoint;				// target waypoint for the system IGNORE added by atulya
+    Vector3f	local_target_hbf;		// local target position as commanded about the HBF IGNORE added by atulya
+    float		waypoint_yaw;			// target yaw for the system 	  IGNORE added by atulya
+    float		local_target_yaw;		// target yaw for the system 	  IGNORE added by atulya
     int 		count_wp_enable;		// IGNORE this is incremented when the RPT sticks are in MID + deadzone and when a
 										// specific count is reached then AUTO_WPNAV is activated(velocity commands based on waypoints)
     int 		flag_auto_wp_enable;	// 1 when AUTO_WPNAV is active 0 otherwise
@@ -138,6 +141,9 @@ typedef struct ap_waypoint_nav
 }WP_Nav;
 
 void updateLoiter(void);
+
+void updateWaypoint(void);
+void resetWaypoint(void);
 
 void initializeWPNav(void);
 void checkSticksForAutoWPNav(void);

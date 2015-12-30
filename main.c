@@ -9,7 +9,7 @@
 #include "odroid_comm.h"
 
 //variables for DEBUGGING via the mavlink message sim_state
-float debug_vec[3];
+float debug_vec[2];
 
 /**
  * This variable contains velocity in centimeter per second
@@ -98,9 +98,14 @@ int main(void)
 		//(Note that these values may need to recalibrated in case remote is changed)
 		float chnl6_out = applyLPF(&wp_nav.channel6_filter, rc_in[6], 0.01);
 		if(chnl6_out > (2000 + 917)/2)
+		{
 			loiter_run();
+		}
 		else
+		{
+			resetWaypoint();
 			resetController();
+		}
 
 		checkArmingStatus();
 

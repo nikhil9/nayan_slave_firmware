@@ -98,7 +98,7 @@ extern Vector3f velocity;
 extern uint16_t rc_in[7];
 
 //variables for debugging sent through sim_state
-extern float debug_vec[3];
+extern float debug_vec[2];
 
 //TODO Phase B : remove the temp variables after improving architecture
 extern float local_x_cm;

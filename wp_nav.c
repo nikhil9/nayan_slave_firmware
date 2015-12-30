@@ -32,6 +32,7 @@ void initializeWPNav()
 
 	initializeVector2fToZero(&wp_nav._loiter_desired_accel);
 	initializeVector3fToZero(&wp_nav.waypoint);
+	wp_nav.waypoint_yaw = 0.0f;
 	wp_nav.flag_auto_wp_enable = 0;
 	wp_nav.flag_waypoint_received = 0;
 	wp_nav.count_wp_enable = 0;
@@ -79,6 +80,7 @@ void loiter_run()
 		if(wp_nav.count_wp_enable == AUTO_WPNAV_COUNT_THRESHOLD && wp_nav.flag_waypoint_received == 1)
 		{
 			wp_nav.flag_waypoint_received = 0;
+			updateWaypoint();
 			wp_nav.flag_auto_wp_enable = 1;
 		}
 
@@ -97,6 +99,7 @@ void loiter_run()
 		}
 		else
 		{
+			resetWaypoint();
 			getPilotDesiredXYVelocity();
 //			getPilotDesiredAcceleration();
 			getPilotClimbRate();
@@ -121,6 +124,34 @@ void loiter_run()
 
 }
 
+void updateWaypoint()
+{
+	Vector3f local_target_ef;
+
+	local_target_ef.x = (wp_nav.local_target_hbf.x*ahrs.cos_psi - wp_nav.local_target_hbf.y*ahrs.sin_psi);
+	local_target_ef.y = (wp_nav.local_target_hbf.x*ahrs.sin_psi + wp_nav.local_target_hbf.y*ahrs.cos_psi);
+	local_target_ef.z = wp_nav.local_target_hbf.z;
+
+//	wp_nav.waypoint.x = local_target_ef.x;			//treat input as absolute targets. Origin is initialization point of GPS/CV
+//	wp_nav.waypoint.y = local_target_ef.y;			//treat input as absolute targets
+//	wp_nav.waypoint.z = local_target_ef.z;			//treat input as absolute targets
+
+	wp_nav.waypoint.x = inav.position.x + local_target_ef.x;			//treat input as relative targets
+	wp_nav.waypoint.y = inav.position.y + local_target_ef.y;			//treat input as relative targets
+	wp_nav.waypoint.z = inav.position.z + local_target_ef.z;			//treat input as relative targets
+
+	wp_nav.waypoint_yaw = ahrs.attitude.z + wp_nav.local_target_yaw;			// a little dangerous if OBC is blindly and continuously sending the same value
+}
+
+void resetWaypoint()
+{
+	wp_nav.waypoint.x = inav.position.x ;			//treat input as relative targets
+	wp_nav.waypoint.y = inav.position.y ;			//treat input as relative targets
+	wp_nav.waypoint.z = inav.position.z ;			//treat input as relative targets
+
+	wp_nav.waypoint_yaw = ahrs.attitude.z;			// a little dangerous if OBC is blindly and continuously sending the same value
+
+}
 
 //check if auto mode has been enabled
 void checkSticksForAutoWPNav()
@@ -369,25 +400,6 @@ static void calcLoiterDesiredVelocity(float nav_dt)
 	// add pilot commanded acceleration
 	desired_vel.x += wp_nav._loiter_desired_accel.x * nav_dt;
 	desired_vel.y += wp_nav._loiter_desired_accel.y * nav_dt;
-
-	    //NOT REQUIRED TO INCLUDE THIS for a simple controller
-//	    float desired_speed = pythagorous2(desired_vel.x, desired_vel.y);
-//
-//	    if (desired_speed != 0)
-//	    {
-//	        Vector2f desired_vel_norm;
-//	        desired_vel_norm.x = desired_vel.x/desired_speed;
-//	        desired_vel_norm.y = desired_vel.y/desired_speed;
-//
-//	        float drag_speed_delta = -_loiter_accel_cmss*nav_dt*desired_speed/gnd_speed_limit_cms;
-//
-//	        if (wp_nav.pilot_accel_fwd_cms == 0 && _pilot_accel_rgt_cms == 0) {
-//	            drag_speed_delta = min(drag_speed_delta,-_loiter_accel_min_cmss*nav_dt);
-//	        }
-//
-//	        desired_speed = max(desired_speed+drag_speed_delta,0.0f);
-//	        desired_vel = desired_vel_norm*desired_speed;
-//	    }
 
 	// Apply EKF limit to desired velocity -  this limit is calculated by the EKF and adjusted as required to ensure certain sensor limits are respected (eg optical flow sensing)
 	float horizSpdDem = pythagorous2(desired_vel.x, desired_vel.y);

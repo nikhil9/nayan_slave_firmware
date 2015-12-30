@@ -20,7 +20,7 @@
 
 #define GRAVITY_MSS 					9.80665f
 #define GRAVITY_CMSS 					100*GRAVITY_MSS
-#define LATLON_TO_CM 1.113195f
+#define LATLON_TO_CM 					1.113195f
 
 #define INERTIAL_NAV_DELTAT_MAX 		0.1
 
