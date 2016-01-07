@@ -104,4 +104,10 @@ extern float debug_vec[2];
 extern float local_x_cm;
 extern float local_y_cm;
 
+extern Vector3f accel, gyro, attitude;
+extern uint16_t rc_input_chn6;
+extern Vector3f vision_pos;
+extern Vector3f setpoint_obc;
+
+
 #endif /* MAIN_H_ */
