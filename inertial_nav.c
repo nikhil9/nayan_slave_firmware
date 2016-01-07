@@ -23,22 +23,6 @@ int isIMUGlitching(void)
 {
 	int all_ok = 1;
 
-	if(isnan(sens_imu.attitude.x)||isnan(sens_imu.attitude.y)||isnan(sens_imu.attitude.z))
-		all_ok = 0;
-
-	if(isinf(sens_imu.attitude.x)||isinf(sens_imu.attitude.y)||isinf(sens_imu.attitude.z))
-		all_ok = 0;
-
-	//assuming that the maximum attitude angles is 10 rad
-	if((fabs(sens_imu.attitude.x)>10)||(fabs(sens_imu.attitude.y)>10)||(fabs(sens_imu.attitude.z)>10))
-		all_ok = 0;
-
-	if(isnan(sens_imu.accel_calib.x)||isnan(sens_imu.accel_calib.y)||isnan(sens_imu.accel_calib.z))
-		all_ok = 0;
-
-	if(isinf(sens_imu.accel_calib.x)||isinf(sens_imu.accel_calib.y)||isinf(sens_imu.accel_calib.z))
-		all_ok = 0;
-
 	//assuming that a sane accelerometer reading + g  is at least 1mss
 	if(normVec3f(sens_imu.accel_calib) < MIN_ACCEL_MEASURED)
 		all_ok = 0;
@@ -147,12 +131,6 @@ static int isGPSGlitching(void)
 //	debug("distance to last_good_lat is %.2f", distance_cm);
 
 	int all_ok = 1;
-
-	if(isnan(sens_gps.lat) || isnan(sens_gps.lng))
-		all_ok = 0;
-
-	if(isinf(sens_gps.lat) || isinf(sens_gps.lng))
-		all_ok = 0;
 
 	    // all ok if within a given hardcoded radius
 	if (distance_cm > GPS_RADIUS_CM)
@@ -401,12 +379,6 @@ static int isBaroGlitching(void)
 	int all_ok = 1;
 //	q[2] = distance_cm;
 		// all ok if within a given hardcoded radius
-
-	if(isnan(sens_baro.position.z))
-		all_ok = 0;
-
-	if(isinf(sens_baro.position.z))
-		all_ok = 0;
 
 	if (fabs(distance_cm) > BARO_RADIUS_CM)
 	{
