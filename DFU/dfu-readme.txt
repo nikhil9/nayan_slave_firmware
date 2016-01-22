@@ -1,5 +1,6 @@
 ## General Instructions ##
 
+In order to program the device press the push button while powering up the autopilot
 Make sure BOOT0 jumper/switch is on while powering up the mcu.
 BOOT0 -> HIGH
 BOOT1 -> LOW

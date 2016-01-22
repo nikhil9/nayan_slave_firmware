@@ -17,21 +17,57 @@
 #include "ch.h"
 #include "hal.h"
 #include "Setup.h"
+
+//=================ADDITION FROM MAVLINK====================
+
 #include "mavlink_types.h"
+
+#ifndef MAVLINK_USE_CONVENIENCE_FUNCTIONS
+#define MAVLINK_USE_CONVENIENCE_FUNCTIONS
+#endif
+
+static mavlink_system_t mavlink_system;
+
+static void comm_send_ch(mavlink_channel_t chan, uint8_t ch)
+{
+    if (chan == MAVLINK_COMM_0)
+    {
+//        uart0_transmit(ch);
+    	sdPut(&SDU1, ch );
+    }
+//    if (chan == MAVLINK_COMM_1)
+//    {
+//    	uart1_transmit(ch);
+//    }
+}
+
 #include "OS_PORT/ext/mavlink/v1.0/common/mavlink.h"
+
+//==========================================================
+
 #include "intercomm.h"
 #include "main.h"
+#include "params.h"
 
-mavlink_system_t mavlink_system;
+const float MILLIG_TO_MS2 = 9.80665f / 1000.0f;
+const float MS2_TO_MILLIG = 1000.0f/9.80665f;
+const float RAD_TO_MILLIRAD = 1000.0f;
 
+static mavlink_param_set_t param_set;
 static mavlink_rc_channels_override_t rc_channels_override;
+
+/**
+ * variables defined by atulya
+ */
+static mavlink_vision_position_estimate_t vision_position_inp;
+static mavlink_set_position_target_local_ned_t local_position_target_ned;
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_heart_beat(void){
+static void send_heart_beat(mavlink_channel_t chan){
 
-	mavlink_msg_heartbeat_send(MAVLINK_COMM_0,
+	mavlink_msg_heartbeat_send(chan,
 			2,
 			0,
 		MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
@@ -42,64 +78,64 @@ static void send_heart_beat(void){
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_scaled_imu(void){
+static void send_scaled_imu(mavlink_channel_t chan){
 
-	mavlink_msg_scaled_imu_send(MAVLINK_COMM_0,
+	mavlink_msg_scaled_imu_send(chan,
 			  millis(),
-			  (int16_t)(accel.x*1000),
-			  (int16_t)(accel.y*1000),
-			  (int16_t)(accel.z*1000),
-			  (int16_t)(gyro.x*1000),
-			  (int16_t)(gyro.y*1000),
-			  (int16_t)(gyro.z*1000),
-			  0,
-			  0,
-			  0);
+			  (int16_t)(sens_imu.accel_calib.x*MS2_TO_MILLIG),
+			  (int16_t)(sens_imu.accel_calib.y*MS2_TO_MILLIG),
+			  (int16_t)(sens_imu.accel_calib.z*MS2_TO_MILLIG),
+			  (int16_t)(sens_imu.gyro_calib.x*RAD_TO_MILLIRAD),
+			  (int16_t)(sens_imu.gyro_calib.y*RAD_TO_MILLIRAD),
+			  (int16_t)(sens_imu.gyro_calib.z*RAD_TO_MILLIRAD),
+			  (int16_t)0,
+			  (int16_t)0,
+			  (int16_t)0);
 }
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_attitude(void){
+static void send_attitude(mavlink_channel_t chan){
 
 	mavlink_msg_attitude_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
-			attitude.x,
-			attitude.y,
-			attitude.z,
-			gyro.x,
-			gyro.y,
-			gyro.z);
+			ahrs.attitude.x,
+			ahrs.attitude.y,
+			ahrs.attitude.z,
+			sens_imu.gyro_calib.x,
+			sens_imu.gyro_calib.y,
+			sens_imu.gyro_calib.z);
 }
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_gps(void){
+static void send_gps(mavlink_channel_t chan){
 
 	mavlink_msg_global_position_int_send(
-			MAVLINK_COMM_0,
+			chan,
 			millis(),
-			position.x,
-			position.y,
-			position.z,
-			position.z,
+			sens_gps.lat,						//sending out raw gps data as received from LLP
+			sens_gps.lng,
+			sens_gps.alt*CM_TO_MM,
+			sens_gps.alt*CM_TO_MM,
 			velocity.x,
 			velocity.y,
 			velocity.z,
-			(int16_t)(attitude.z*5729.57));
+			(int16_t)(ahrs.attitude.z*5729.57));
 }
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-static void send_rc_in(void){
+static void send_rc_in(mavlink_channel_t chan){
     mavlink_msg_rc_channels_raw_send(
-    	MAVLINK_COMM_0,
+    	chan,
         millis(),
         0, // port
-        rc_in[0],
+        rc_in[0],								//sending out raw RC input data as received from LLP
 		rc_in[1],
 		rc_in[2],
 		rc_in[3],
@@ -108,6 +144,86 @@ static void send_rc_in(void){
 		rc_in[6],
 		0,
         -1);
+}
+
+static void send_local_position_ned(mavlink_channel_t chan)
+{
+#if (USE_BARO_NOT_SONAR == 1)
+	mavlink_msg_local_position_ned_send(
+			chan,
+			millis(),
+			local_x_cm,
+			local_y_cm,
+			sens_baro.position.z,
+			0,
+			0,
+			0);
+#else
+	mavlink_msg_local_position_ned_send(
+			chan,
+			millis(),
+			sens_cv.position.x,
+			sens_cv.position.y,
+			sens_sonar.depth,
+			0,
+			0,
+			0);
+#endif
+}
+
+//TODO: In release version of the code remove the sim_state and hil_state and replace them with something else
+static void send_hil_state(mavlink_channel_t chan)
+{
+	mavlink_msg_hil_state_send(
+			chan,
+			millis(),
+			debug_vec[0],
+			debug_vec[1],
+			32.0,
+			pos_control.vel_desired.x,
+			pos_control.vel_desired.y,
+			pos_control.vel_desired.z,
+			setpoint_obc.x*10,
+			setpoint_obc.y*10,
+			setpoint_obc.z*10,
+			pos_control.vel_target.x*10,
+			pos_control.vel_target.y*10,
+			pos_control.vel_target.z*10,
+			pos_control.accel_target_filter_x.output*10,
+			pos_control.accel_target_filter_y.output*10,
+			pos_control.accel_target.z*10
+			);
+}
+
+/**
+ * changes made by atulya
+ */
+static void send_sim_state(mavlink_channel_t chan)
+{
+	mavlink_msg_sim_state_send(
+			chan,
+			ic_rc_or_data.ic_rc.rc1,
+			ic_rc_or_data.ic_rc.rc2,
+			ic_rc_or_data.ic_rc.rc3,
+			ic_rc_or_data.ic_rc.rc4,
+			attitude.x,
+			attitude.y,
+			attitude.z,
+			accel.x,
+			accel.y,
+			accel.z,
+			gyro.x,
+			gyro.y,
+			gyro.z,
+			vision_pos.x,
+			vision_pos.y,
+			vision_pos.z,
+			0,
+			0,
+			inav.velocity.x,
+			inav.velocity.y,
+			inav.velocity.z
+			);
 }
 
 /**
@@ -123,35 +239,86 @@ static msg_t mavlinkSend(void *arg) {
   uint16_t hbt_cnt = 0;
 
   uint16_t gps_cnt = 0;
+  uint16_t local_cnt = 0;
 
-  uint16_t rc_cnt = 0;
+  uint16_t imu_cnt = 3;
+  uint16_t sim_state_cnt = 1;
+  uint16_t hil_cnt = 2;
 
   while (TRUE) {
 
 	  if(hbt_cnt > 200){
-		  send_heart_beat();
+		  send_heart_beat(MAVLINK_COMM_0);
+		  send_heart_beat(MAVLINK_COMM_1);
 		  hbt_cnt = 0;
 	  }
 
+#if(DEBUG_MODE == 1)
 
-	  send_scaled_imu();
+	  if(gps_cnt > 3)
+	  {
+		  if(local_cnt == 0)
+		  {
+			  send_gps(MAVLINK_COMM_0);
+			  send_gps(MAVLINK_COMM_1);
+		  }
+		  if(local_cnt == 1)
+		  {
+			  send_rc_in(MAVLINK_COMM_0);
+			  send_rc_in(MAVLINK_COMM_1);
+		  }
+		  if(local_cnt == 2)
+		  {
+			  send_local_position_ned(MAVLINK_COMM_0);
+			  send_local_position_ned(MAVLINK_COMM_1);
 
-	  send_attitude();
+		  }
 
-	  if(gps_cnt > 40){
-		  send_gps();
+		  local_cnt = (local_cnt + 1)%3;
 		  gps_cnt = 0;
 	  }
 
-	  if(rc_cnt > 4){
-		  send_rc_in();
-		  rc_cnt = 0;
+	  if(imu_cnt > 3)
+	  {
+		  send_scaled_imu(MAVLINK_COMM_0);
+		  send_attitude(MAVLINK_COMM_0);
+		  send_scaled_imu(MAVLINK_COMM_1);
+		  send_attitude(MAVLINK_COMM_1);
+		  imu_cnt = 0;
 	  }
+
+//	  if(sim_state_cnt > 3)				//TODO change the sending rates after the debugging stage
+//	  {
+		  send_sim_state(MAVLINK_COMM_0);
+//		  sim_state_cnt = 0;
+//	  }
+
+//	  if(hil_cnt > 3)
+//	  {
+		  send_hil_state(MAVLINK_COMM_0);
+//		  hil_cnt = 0;
+//	  }
+		  gps_cnt++;
+		  hil_cnt++;
+		  imu_cnt++;
+		  sim_state_cnt++;
+#else
+	  //sending out imu data @ 200Hz
+	  send_scaled_imu();
+	  send_attitude();
+
+	  //sending out data @ 50Hz
+	  if(gps_cnt > 3)
+	  {
+		  send_gps();
+		  send_rc_in();
+		  gps_cnt = 0;
+	  }
+	  gps_cnt++;
+#endif
 
 	  chThdSleep(US2ST(4500));
 	  hbt_cnt++;
-	  gps_cnt++;
-	  rc_cnt++;
 
   }
   return 0;
@@ -192,38 +359,38 @@ uint8_t comm_receive_ch(mavlink_channel_t chan)
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-void send_params(void){
+void send_params(mavlink_channel_t chan){
 	mavlink_msg_param_value_send(
-					 MAVLINK_COMM_0,
-					 "SYSID_THISMAV",
-					 1,
+					 chan,
+					 sysid_thismav,
+					 SYSID,
 					 MAVLINK_TYPE_UINT8_T,
-					 0,
-					 3);
+					 PARAM_COUNT,
+					 sysid_thismav_index);
 
 	mavlink_msg_param_value_send(
-					 MAVLINK_COMM_0,
-					 "SYSID_SW_TYPE",
-					 10,
+					 chan,
+					 sysid_sw_type,
+					 SW_TYPE,
 					 MAVLINK_TYPE_UINT8_T,
-					 1,
-					 3);
+					 PARAM_COUNT,
+					 sysid_sw_type_index);
 
 	mavlink_msg_param_value_send(
-					 MAVLINK_COMM_0,
-					 "SYSID_MYGCS",
-					 255,
+					 chan,
+					 sysid_mygcs,
+					 MY_GCS,
 					 MAVLINK_TYPE_UINT8_T,
-					 2,
-					 3);
+					 PARAM_COUNT,
+					 sysid_mygcs_index);
+	FWparamQSend(chan);
 }
 
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
-void handleMessage(mavlink_message_t* msg)
+void handleMessage(mavlink_message_t* msg, mavlink_channel_t chan)
 {
-
     switch (msg->msgid) {
 
     case MAVLINK_MSG_ID_HEARTBEAT:
@@ -234,7 +401,6 @@ void handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
      {
-
     	 palTogglePad(GPIOC, 1);
     	 mavlink_msg_rc_channels_override_decode(msg, &rc_channels_override);
 
@@ -251,14 +417,94 @@ void handleMessage(mavlink_message_t* msg)
 
     case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
     {
-    	send_params();
-
+    	send_params(chan);
     	break;
     }
 
+    /* When a request os made for a specific parameter */
+      case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
+      {
+    	  mavlink_param_request_read_t cmd;
+          mavlink_msg_param_request_read_decode(msg, &cmd);
+
+          /* local name buffer to enforce null-terminated string */
+          char name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN + 1];
+          strncpy(name, cmd.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
+          /* enforce null termination */
+          name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
+          /* attempt to find parameter, set and send it */
+          resendParamMavLink(chan, name, cmd.param_index);
+          break;
+      }
+
     case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
     {
-    	mavlink_msg_mission_count_send(MAVLINK_COMM_0, 1, 0, 0);
+    	mavlink_msg_mission_count_send(chan, 1, 0, 0);
+    	break;
+    }
+    case MAVLINK_MSG_ID_PARAM_SET:
+    {
+    	mavlink_msg_param_set_decode(msg, &param_set);
+
+    	/* local name buffer to enforce null-terminated string */
+		char name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN + 1];
+		strncpy(name, param_set.param_id, MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN);
+		/* enforce null termination */
+		name[MAVLINK_MSG_PARAM_VALUE_FIELD_PARAM_ID_LEN] = '\0';
+		/* attempt to find parameter, set and send it */
+		FWupdateParamMavLink(chan, name, param_set.param_value);
+		break;
+    }
+    /**
+     * additions by atulya
+     */
+
+    case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
+    {
+		/*FIXME BUG in UAS
+		* Transformation in Eigen/Geometry near mat.eulerAngles it has been stated
+		* the returned angles are in the range [0:pi]x[-pi:pi]x[-pi:pi]
+		* In quaternion_to_rpy() present in the file uas_quaternion_utils.cpp in the folder
+		* mavros/mavros/src/lib the function mat.eulerAngles has been used to obtain YPR in
+		* the order 2,1,0
+		* So the yaw obtained is in the range is in [0 pi] which causes a bug
+		* Hence the yaw obtained inside the FCU code is in range of [0 pi] which is wrong coz
+		* -pi/2 was represented as pi/2
+		* So now the yaw angle is sent as roll angle and similarly in FCU the cv yaw is assigned
+		* to the roll angle
+		*/
+
+    	mavlink_msg_vision_position_estimate_decode(msg, &vision_position_inp);
+    	sens_cv.position.x = 100*vision_position_inp.x;				//M to CM
+    	sens_cv.position.y = 100*vision_position_inp.y;
+    	sens_cv.position.z = -100*vision_position_inp.z;			//NED to NEU so that altitude is positive
+    	sens_cv.yaw = -vision_position_inp.roll;					//DUe to a bug above
+    	sens_cv.obc_stamp = vision_position_inp.usec;
+    	sens_cv.stamp = millis();
+    	if(fabs(vision_position_inp.yaw - 1) < EPSILON)				// signal sent to ensure CV is active
+    		sens_cv.flag_active = 1;
+    	else
+    		sens_cv.flag_active = 0;
+
+		sens_sonar.obc_stamp = vision_position_inp.usec;
+		sens_sonar.stamp = sens_cv.stamp;
+		sens_sonar.depth = -100*vision_position_inp.z;
+
+    	break;
+    }
+    case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:
+    {
+    	mavlink_msg_set_position_target_local_ned_decode(msg, &local_position_target_ned);
+
+		wp_nav.local_target_yaw = local_position_target_ned.yaw;
+
+    	wp_nav.local_target_hbf.x = 100*local_position_target_ned.x;			//treat input as relative targets
+    	wp_nav.local_target_hbf.y = 100*local_position_target_ned.y;			//treat input as relative targets
+    	wp_nav.local_target_hbf.z =  (-100)*local_position_target_ned.z;		//treat input as relative targets
+
+    	wp_nav.flag_waypoint_received = 1;
+    	debug("Received waypoint [%.3f, %.3f, %.3f]", local_position_target_ned.x, local_position_target_ned.y, local_position_target_ned.z);
+
     	break;
     }
 
@@ -268,30 +514,40 @@ void handleMessage(mavlink_message_t* msg)
     }
 }
 
-
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */
 
 void odroid_update(void )
 {
+    mavlink_message_t msg_ch0, msg_ch1;
+    mavlink_status_t status_ch0, status_ch1;
+    status_ch0.packet_rx_drop_count = 0;
+    status_ch1.packet_rx_drop_count = 0;
 
-    mavlink_message_t msg;
-    mavlink_status_t status;
-    status.packet_rx_drop_count = 0;
-
-
-    uint16_t nbytes = comm_get_available(MAVLINK_COMM_0);
-
+    // Deal with channel 0
+    uint16_t nbytes_ch0 = comm_get_available(MAVLINK_COMM_0);
     uint16_t i = 0;
-
-    for (i = 0; i<nbytes; i++)
+    for (i = 0; i<nbytes_ch0; i++)
     {
         uint8_t c = comm_receive_ch(MAVLINK_COMM_0);
 
-        if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg, &status)) {
+        if (mavlink_parse_char(MAVLINK_COMM_0, c, &msg_ch0, &status_ch0))
+        {
+            handleMessage(&msg_ch0, MAVLINK_COMM_0);
+        }
+    }
 
-            handleMessage(&msg);
+    // Deal with channel 1
+    uint16_t nbytes_ch1 = comm_get_available(MAVLINK_COMM_1);
+    i = 0;
+    for (i = 0; i<nbytes_ch1; i++)
+    {
+        uint8_t c = comm_receive_ch(MAVLINK_COMM_1);
+
+        if (mavlink_parse_char(MAVLINK_COMM_1, c, &msg_ch1, &status_ch1))
+        {
+            handleMessage(&msg_ch1, MAVLINK_COMM_1);
         }
     }
 }
@@ -306,7 +562,7 @@ static msg_t mavlinkReceive(void *arg) {
   chRegSetThreadName("mavlinkReceive");
 
   while (TRUE) {
-	  odroid_update();
+	  odroid_update();//maybe do alternate between odroid and gcs
 	  delay(10);
   }
   return 0;
@@ -317,13 +573,15 @@ static msg_t mavlinkReceive(void *arg) {
 
 void odroid_comm_init(void){
 
-	mavlink_system.sysid = 1;
+	mavlink_system.sysid = SYSID;
+//	mavlink_system.compid = 1;
 
-	mavlink_system.type = 2;
+//	mavlink_system.type = 2;		// present in previous version
 
 	chThdCreateStatic(mavlinkReceiveThread, sizeof(mavlinkReceiveThread), NORMALPRIO, mavlinkReceive, NULL);
 	chThdCreateStatic(mavlinkSendThread, sizeof(mavlinkSendThread), NORMALPRIO, mavlinkSend, NULL);
 
 }
+
 
 #endif /* ODROID_COMM_C_ */
