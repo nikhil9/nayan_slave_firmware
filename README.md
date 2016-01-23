@@ -20,7 +20,8 @@ Visit [http://qgroundcontrol.org/mavlink/start](http://qgroundcontrol.org/mavlin
 
 ###Sensor Variables
 * <code>Sensor_IMU sens_imu</code> holds latest acceleration, angular rates and attitude from IMU
-* <code>Sensor_Pose sens_pos</code> Holds latest latitude, longitude, velocities in NED from GPS and altitude from barometer. 
+* <code>Sensor_Pose sens_pos</code> holds latest latitude, longitude, velocities in NED from GPS and altitude from barometer. 
+* <code>Sensor_ExtPos sens_cv</code> holds vision position estimates from odroid
 * <code>uint16_t rc_in[7]</code> holds latest radio control inputs.
 
 ###Control Variables

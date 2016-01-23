@@ -15,6 +15,8 @@
 #include "math.h"
 
 #define CM_TO_MM 10
+#define EPSILON 1e-3F
+
 #define M_PI_F 3.141592653589793f
 #define DEG_TO_RAD 0.017453292519943295769236907684886f
 #define RAD_TO_DEG 57.295779513082320876798154814105f
@@ -64,10 +66,26 @@ typedef struct
 	Vector3f vel; /* Velocities from GPS in cm per sec in NED frame*/
 }Sensor_Pose;
 
+/**
+ * @brief struct to acquire data from an external position sensor such as a vision based system
+ * @note This is being updated at handleMessage() in odroid.c
+ */
+typedef struct
+{
+	uint32_t stamp; /* Slave Processor System timestamp */
+	uint64_t obc_stamp; /* Timestamp from Odroid */
+	Vector3f position; /* position in local frame */
+	float yaw; /* yaw angle in NED frame */
+	uint8_t flag_active; /* This is true if slave processor is receiving updates from odroid*/
+	float depth; /* depth from Sonar if sent from odroid */
+}Sensor_ExtPos;
+
 
 extern Sensor_IMU sens_imu;
 
 extern Sensor_Pose sens_pos;
+
+extern Sensor_ExtPos sens_cv;
 
 extern uint16_t rc_in[7];
 

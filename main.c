@@ -15,6 +15,10 @@ Sensor_IMU sens_imu;
 //Handles position data from GPS and Baro
 Sensor_Pose sens_pos;
 
+//Handles position data from Odroid. This is being updated at handleMessage()
+//function in odroid.c
+Sensor_ExtPos sens_cv;
+
 //Handles radio control inputs
 uint16_t rc_in[7];
 
