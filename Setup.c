@@ -370,9 +370,6 @@ uint32_t millis(void){
 	return ST2MS(chTimeNow());
 }
 
-uint32_t micros(void){
-	return ST2US(chTimeNow());
-}
 /**
  * @Warning DO NOT EDIT THIS FUNCTION!
  */

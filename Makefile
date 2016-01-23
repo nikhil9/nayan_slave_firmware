@@ -78,7 +78,7 @@ include $(CHIBIOS)/os/kernel/kernel.mk
 
 # Define linker script file here
 LDSCRIPT= $(PORTLD)/STM32F405xG.ld
-#LDSCRIPT= $(PORTLD)/STM32F407xG_CCM.ld
+
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -95,13 +95,8 @@ CSRC = $(PORTSRC) \
        $(CHIBIOS)/os/various/memstreams.c \
        stubs.c \
        Setup.c \
-       params.c \
        intercomm.c \
        odroid_comm.c \
-       inertial_nav.c \
-       autopilot_math.c \
-       position_controller.c\
-       wp_nav.c\
        main.c
        
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global

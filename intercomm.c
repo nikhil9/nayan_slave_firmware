@@ -63,6 +63,10 @@ bool_t check_acc_sanity(float _a){
 
 }
 
+/**
+ * @Warning DO NOT EDIT THIS FUNCTION EVER!
+ */
+
 bool_t isAccelSane(void)
 {
 	if(isnan(ic_imu_data.ic_imu.ax)||isnan(ic_imu_data.ic_imu.ay)||isnan(ic_imu_data.ic_imu.az))
@@ -78,6 +82,10 @@ bool_t isAccelSane(void)
 
 	return TRUE;
 }
+
+/**
+ * @Warning DO NOT EDIT THIS FUNCTION EVER!
+ */
 
 bool_t isGyroSane(void)
 {
@@ -97,6 +105,10 @@ bool_t isGyroSane(void)
 
 }
 
+/**
+ * @Warning DO NOT EDIT THIS FUNCTION EVER!
+ */
+
 bool_t isAttitudeSane(void)
 {
 
@@ -112,6 +124,10 @@ bool_t isAttitudeSane(void)
 
 	return TRUE;
 }
+
+/**
+ * @Warning DO NOT EDIT THIS FUNCTION EVER!
+ */
 
 bool_t isRCInputSane(void)
 {
@@ -150,6 +166,10 @@ bool_t isRCInputSane(void)
 	return TRUE;
 }
 
+/**
+ * @Warning DO NOT EDIT THIS FUNCTION EVER!
+ */
+
 bool_t isGPSBaroSane(void)
 {
 
@@ -178,14 +198,14 @@ void update_ic_data(void){
 		sens_imu.stamp = stamp;
 
 		//acceleration outputs in m/s2 in NED body frame
-		sens_imu.accel_calib.x = ic_imu_data.ic_imu.ax;
-		sens_imu.accel_calib.y = ic_imu_data.ic_imu.ay;
-		sens_imu.accel_calib.z = ic_imu_data.ic_imu.az;
+		sens_imu.accel.x = ic_imu_data.ic_imu.ax;
+		sens_imu.accel.y = ic_imu_data.ic_imu.ay;
+		sens_imu.accel.z = ic_imu_data.ic_imu.az;
 
 		//angular velocity outputs in NED body frame in rad/s
-		sens_imu.gyro_calib.x = ic_imu_data.ic_imu.gx;
-		sens_imu.gyro_calib.y = ic_imu_data.ic_imu.gy;
-		sens_imu.gyro_calib.z = ic_imu_data.ic_imu.gz;
+		sens_imu.gyro.x = ic_imu_data.ic_imu.gx;
+		sens_imu.gyro.y = ic_imu_data.ic_imu.gy;
+		sens_imu.gyro.z = ic_imu_data.ic_imu.gz;
 
 		//attitude Roll, Pitch and Yaw as calculated about NED frame in rad
 		sens_imu.attitude.x = ic_imu_data.ic_imu.roll;
@@ -196,27 +216,25 @@ void update_ic_data(void){
 	if(isGPSBaroSane() == TRUE)
 	{
 		//GPS latitude(in degrees)*1e7; longitude(in degrees)*1e7 ; altitude(in cm)
-		Vector3f _position_gps;
-		_position_gps.x = ic_imu_data.ic_imu.lat;
-		_position_gps.y = ic_imu_data.ic_imu.lng;
-		_position_gps.z = ic_imu_data.ic_imu.alt;
+		Vector3f _position_loc;
+		_position_loc.x = ic_imu_data.ic_imu.lat;
+		_position_loc.y = ic_imu_data.ic_imu.lng;
+		_position_loc.z = ic_imu_data.ic_imu.alt;
 
-		if(_position_gps.x != sens_gps.lat || _position_gps.y != sens_gps.lng || _position_gps.z != sens_gps.alt)
+		if(_position_loc.x != sens_pos.lat || _position_loc.y != sens_pos.lng || _position_loc.z != sens_pos.alt)
 		{
-			sens_gps.stamp = stamp;
-			sens_gps.lat = (int32_t)(_position_gps.x);
-			sens_gps.lng = (int32_t)(_position_gps.y);
-			sens_gps.alt = _position_gps.z;
+			sens_pos.stamp = stamp;
+			sens_pos.lat = (int32_t)(_position_loc.x);
+			sens_pos.lng = (int32_t)(_position_loc.y);
+			sens_pos.alt = _position_loc.z;
 
-			sens_baro.stamp = stamp;
-			sens_baro.position.z = _position_gps.z;
 		}
 	}
 
 	//velocity as processed by the LLP
-	velocity.x = ic_imu_data.ic_imu.vx;
-	velocity.y = ic_imu_data.ic_imu.vy;
-	velocity.z = ic_imu_data.ic_imu.vz;
+	sens_pos.vel.x = ic_imu_data.ic_imu.vx;
+	sens_pos.vel.y = ic_imu_data.ic_imu.vy;
+	sens_pos.vel.z = ic_imu_data.ic_imu.vz;
 
 	if(isRCInputSane() == TRUE)
 	{
@@ -229,6 +247,17 @@ void update_ic_data(void){
 		rc_in[5] = ic_imu_data.ic_imu.rc_in_6;
 		rc_in[6] = ic_imu_data.ic_imu.rc_in_7;
 	}
+
+
+	if(dmc){
+		ic_rc_or_data.ic_rc.rc7 = 1500;
+	}else{
+		ic_rc_or_data.ic_rc.rc7 = 1000;
+	}
+	ic_rc_or_data.ic_rc.rc1 = control_command[0];
+	ic_rc_or_data.ic_rc.rc2 = control_command[1];
+	ic_rc_or_data.ic_rc.rc3 = control_command[2];
+	ic_rc_or_data.ic_rc.rc4 = control_command[3];
 }
 
 #endif /* INTERCOMM_CPP_ */

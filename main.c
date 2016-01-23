@@ -8,44 +8,70 @@
 #include "intercomm.h"
 #include "odroid_comm.h"
 
-//variables for DEBUGGING via the mavlink message sim_state
-float debug_vec[2];
 
-/**
- * This variable contains velocity in centimeter per second
- * velocity.x -> velocity along x axis
- * velocity.y -> velocity along y axis
- * velocity.z -> velocity along z axis
- */
-Vector3f velocity;
+//Handles imu data
+Sensor_IMU sens_imu;
 
-/**
- * This variable contains radio control input values.
- */
+//Handles position data from GPS and Baro
+Sensor_Pose sens_pos;
+
+//Handles radio control inputs
 uint16_t rc_in[7];
 
-float local_x_cm = 0;
-float local_y_cm = 0;
+//If TRUE -> control_command control motors directly (This will bypass Master Controller) (Use Very Cautiously)
+//if FALSE-> control_command are setpoints for attitude controller running on Master Processor
+bool_t dmc = FALSE;
 
-Sensor_IMU sens_imu;
-uint32_t last_imu_stamp;
-Sensor_GPS sens_gps;
-uint32_t last_gps_stamp;
-Sensor_ExtPos sens_baro;
-uint32_t last_baro_stamp;
-Sensor_ExtPos sens_cv;
-Sensor_Depth sens_sonar;
+/**
+ * This array is passed to Master controller for Motor Control.
+ * Update these variables with desired value as Output of your control Algorithm
+ *
+ * If dmc = TRUE,
+ * control_command[0] -> Motor 1
+ * control_command[1] -> Motor 2
+ * control_command[2] -> Motor 3
+ * control_command[3] -> Motor 4
+ *
+ * If dmc = FALSE,
+ * control_command[0] -> Desired Roll		(Range: 1000 to 2000)(Scaling -30deg to +30deg)
+ * control_command[1] -> Desired Pitch		(Range: 1000 to 2000)(Scaling -30deg to +30deg)
+ * control_command[2] -> Desired Throttle
+ * control_command[3] -> Desired Yaw		(Range: 1000 to 2000)(Scaling -90deg/sec to +90deg/sec)
+ *
+ */
+uint16_t control_command[4] = {1500, 1500, 1000, 1500};
 
-AHRS ahrs;
-Inertial_nav_data inav;
-Position_Controller pos_control;
-WP_Nav wp_nav;
 
-//User Defined Variables
-Vector3f accel, gyro, attitude;
-uint16_t rc_input_chn7;
-Vector3f vision_pos;
-Vector3f setpoint_obc;
+
+/**
+ * <-- Master Control Setpoints -->
+ * This function maps radio control values from master processor to control commads.
+ * When switch to Slave Processor Nayan will fly similar to Manual Mode.
+*/
+void example_function_1(void){
+
+	dmc = FALSE;
+	control_command[0] = rc_in[0];
+	control_command[1] = rc_in[1];
+	control_command[2] = rc_in[2];
+	control_command[3] = rc_in[3];
+}
+
+/**
+ * <-- Direct Motor Control -->
+ * Throttle value from RC controller will be given directly to all 4 motors
+ * This function is for testing purpose only, One should not use this for flying
+ *
+*/
+void example_function_2(void){
+
+	dmc = TRUE;
+	control_command[0] = rc_in[2];
+	control_command[1] = rc_in[2];
+	control_command[2] = rc_in[2];
+	control_command[3] = rc_in[2];
+}
+
 
 int main(void)
 {
@@ -60,48 +86,17 @@ int main(void)
 
 	while(TRUE)
 	{
-		rc_input_chn7 = rc_in[6];
 
-		if(rc_input_chn7 > 2100)
-		{
-			debug_vec[0] = 1.6;
-			ic_rc_or_data.ic_rc.rc3 = 1600;				//overrides being sent to throttle
-		}
-		else
-		{
-			debug_vec[0] = 0;
-			ic_rc_or_data.ic_rc.rc3 = 1500;				//overrides being sent to throttle
-		}
-		debug_vec[1] = -2.45;
+		/**
+		 * User code goes here. This loop will be executed at 100Hz
+		 */
 
-		accel.x = sens_imu.accel_calib.x;				//acceleration outputs in m/s2 in NED body frame
-		accel.y = sens_imu.accel_calib.y;				//acceleration outputs in m/s2 in NED body frame
-		accel.z = sens_imu.accel_calib.z;				//acceleration outputs in m/s2 in NED body frame
+//		example_function_1();
 
-		gyro.x = sens_imu.gyro_calib.x;					//angular velocity outputs in NED body frame in rad/s
-		gyro.y = sens_imu.gyro_calib.y;					//angular velocity outputs in NED body frame in rad/s
-		gyro.z = sens_imu.gyro_calib.z;					//angular velocity outputs in NED body frame in rad/s
+//		example_function_2();
 
-		attitude.x = sens_imu.attitude.x;				//attitude Roll, Pitch and Yaw as calculated about NED frame in rad
-		attitude.y = sens_imu.attitude.y;				//attitude Roll, Pitch and Yaw as calculated about NED frame in rad
-		attitude.z = sens_imu.attitude.z;				//attitude Roll, Pitch and Yaw as calculated about NED frame in rad
 
-		vision_pos.x = sens_cv.position.x;				// This is in NEU and in cm/s
-		vision_pos.y = sens_cv.position.y;				// This is in NEU and in cm/s
-		vision_pos.z = sens_cv.position.z;				// This is in NEU and in cm/s
-
-		setpoint_obc.x = wp_nav.local_target_hbf.x;		// This is in NEU and in cm/s
-		setpoint_obc.y = wp_nav.local_target_hbf.y;		// This is in NEU and in cm/s
-		setpoint_obc.z = wp_nav.local_target_hbf.z;		// This is in NEU and in cm/s
-
-		if(rc_in[0] > 1000 && rc_in[0] < 2000)
-			ic_rc_or_data.ic_rc.rc1 = rc_in[0];			//overrides being sent to roll
-		if(rc_in[1] > 1000 && rc_in[1] < 2000)
-			ic_rc_or_data.ic_rc.rc2 = rc_in[1];			//overrides being sent to pitch
-		if(rc_in[3] > 1000 && rc_in[3] < 2000)
-			ic_rc_or_data.ic_rc.rc4 = rc_in[3];			//overrides being sent to yaw_rate
-
-		delay(10);
+		delay(100);
 	}
 	return 0;
 }
