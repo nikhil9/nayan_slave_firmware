@@ -1,20 +1,27 @@
 # nayan_slave_firmware
-Implements Loiter Code from ArduCopter on the nayan HLP
 
-## Organization: 
-*System files contain important functions for running RTOS and other functionalities and should not be changed
+BareBone code template for Nayan Slave Processor written in [chibios](http://www.chibios.org/dokuwiki/doku.php)
 
-autopilot_math: implements key mathematical structures and operations
-config.h: contains all parameters
-inertial_nav: implements INS code on the FCU
-intercomm: System file. Handles communication between HLP and LLP
-mcuconf.h: System file
-odroid_comm: handles communication with an odroid system
-params: implements saving and loading parameters
-position_controller: implements position controller
-Setup: System file
-stubs: System file
-wp_nav: Handles loiter and waypoint navigation
+## Flashing on the Slave Firmware
+[Slave_Processor_Setup](http://aus.co.in/wiki/Slave_Processor_Setup)
 
-## Flashing on the NAYAN HLP
-[nayan_slave_interface](http://aus.co.in/wiki/Nayan_AP_Slave_Processor)
+
+##Nayan Wiki
+Visit [http://aus.co.in/wiki](http://aus.co.in/wiki)
+
+##Chibios Documentation
+Visit [http://chibios.sourceforge.net/html/](http://chibios.sourceforge.net/html/) 
+
+
+##Overview
+
+###Sensor Variables
+* <code>Sensor_IMU sens_imu</code> holds latest acceleration, angular rates and attitude from IMU
+* <code>Sensor_Pose sens_pos</code> Holds latest latitude, longitude, velocities in NED from GPS and altitude from barometer. 
+* <code>uint16_t rc_in[7]</code> holds latest radio control inputs.
+
+###Control Variables
+* <code>bool_t dmc</code> control motors direcly if TRUE. If FALSE, then provids setpoints to master controller.
+* <code>uint16_t control_command[4]</code> accepts direct motor commands if <code>dmc = TRUE</code> or master controller setpoints if <code>dmc = FASLE</code>
+
+
