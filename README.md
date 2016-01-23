@@ -1,16 +1,19 @@
-# nayan_slave_firmware
+## Nayan Slave Firmware
 
 BareBone code template for Nayan Slave Processor written in [chibios](http://www.chibios.org/dokuwiki/doku.php)
 
-## Flashing on the Slave Firmware
+### Flashing on the Slave Firmware
 [Slave_Processor_Setup](http://aus.co.in/wiki/Slave_Processor_Setup)
 
 
-##Nayan Wiki
+###Nayan Wiki
 Visit [http://aus.co.in/wiki](http://aus.co.in/wiki)
 
-##Chibios Documentation
+###Chibios Documentation
 Visit [http://chibios.sourceforge.net/html/](http://chibios.sourceforge.net/html/) 
+
+###MAVLink
+Visit [http://qgroundcontrol.org/mavlink/start](http://qgroundcontrol.org/mavlink/start)
 
 
 ##Overview
