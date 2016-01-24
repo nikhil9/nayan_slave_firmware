@@ -49,7 +49,7 @@ uint16_t control_command[4] = {1500, 1500, 1000, 1500};
 
 /**
  * <-- Master Control Setpoints -->
- * This function maps radio control values from master processor to control commads.
+ * This function maps radio control values from master processor to control commands.
  * When switch to Slave Processor Nayan will fly similar to Manual Mode.
 */
 void example_function_1(void){
