@@ -2,9 +2,6 @@
 
 BareBone code template for Nayan Slave Processor written in [chibios](http://www.chibios.org/dokuwiki/doku.php)
 
-###Build Status
-[![Build Travis](https://travis-ci.org/nikhil9/nayan_slave_firmware.svg?branch=master)](https://travis-ci.org/nikhil9/nayan_slave_firmware)
-
 ###Flashing on the Slave Firmware
 [Slave_Processor_Setup](http://aus.co.in/wiki/Slave_Processor_Setup)
 
