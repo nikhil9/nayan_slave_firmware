@@ -99,8 +99,13 @@ int main(void)
 
 //		example_function_2();
 
+		//testing dbg msg
+//		odroid_debug(1, 265.658);
 
-		delay(100);
+//		odroid_debug(5, 0.157946);
+
+
+		delay(1000);
 	}
 	return 0;
 }

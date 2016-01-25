@@ -60,20 +60,24 @@ static void send_heart_beat(mavlink_channel_t chan){
 		MAV_STATE_ACTIVE);
 }
 
-//Sends imu data to odroid
-static void send_scaled_imu(mavlink_channel_t chan){
+static void send_highres_imu(mavlink_channel_t chan){
 
-	mavlink_msg_scaled_imu_send(chan,
-			  millis(),
-			  (int16_t)(sens_imu.accel.x*MS2_TO_MILLIG),
-			  (int16_t)(sens_imu.accel.y*MS2_TO_MILLIG),
-			  (int16_t)(sens_imu.accel.z*MS2_TO_MILLIG),
-			  (int16_t)(sens_imu.gyro.x*RAD_TO_MILLIRAD),
-			  (int16_t)(sens_imu.gyro.y*RAD_TO_MILLIRAD),
-			  (int16_t)(sens_imu.gyro.z*RAD_TO_MILLIRAD),
-			  (int16_t)0,
-			  (int16_t)0,
-			  (int16_t)0);
+	mavlink_msg_highres_imu_send(chan,
+			  (millis()*1000),
+			  (sens_imu.accel.x),
+			  (sens_imu.accel.y),
+			  (sens_imu.accel.z),
+			  (sens_imu.gyro.x),
+			  (sens_imu.gyro.y),
+			  (sens_imu.gyro.z),
+			  0,
+			  0,
+			  0,
+			  0,
+			  0,
+			  0,
+			  0,
+			  63);
 }
 
 //Sends attitude data to odroid
@@ -145,7 +149,7 @@ static msg_t mavlinkSend(void *arg) {
 	  }
 
 	  //sending out imu data @ 200Hz
-	  send_scaled_imu(MAVLINK_COMM_0);
+	  send_highres_imu(MAVLINK_COMM_0);
 
 	  send_attitude(MAVLINK_COMM_0);
 
@@ -162,7 +166,7 @@ static msg_t mavlinkSend(void *arg) {
 		  rc_cnt = 0;
 	  }
 
-	  chThdSleep(US2ST(4500));
+	  delay(5);
 	  hbt_cnt++;
 	  gps_cnt++;
 	  rc_cnt++;
@@ -334,6 +338,13 @@ void odroid_comm_init(void){
 	chThdCreateStatic(mavlinkReceiveThread, sizeof(mavlinkReceiveThread), NORMALPRIO, mavlinkReceive, NULL);
 	chThdCreateStatic(mavlinkSendThread, sizeof(mavlinkSendThread), NORMALPRIO, mavlinkSend, NULL);
 
+}
+
+void odroid_debug(uint8_t _index, float _value){
+	mavlink_msg_debug_send(MAVLINK_COMM_0,
+			millis(),
+			_index,
+			_value);
 }
 
 

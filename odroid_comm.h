@@ -18,4 +18,6 @@ void odroid_comm_init(void);
 
 void send_params(void);
 
+void odroid_debug(uint8_t _index, float _value);
+
 #endif /* ODROID_COMM_H_ */
