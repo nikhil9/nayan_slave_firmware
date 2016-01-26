@@ -1,12 +1,12 @@
 /*
- * odroid_comm.h
+ * OBC_comm.h
  *
  *  Created on: 26-Apr-2015
  *      Author: nikhil
  */
 
-#ifndef ODROID_COMM_H_
-#define ODROID_COMM_H_
+#ifndef OBC_COMM_H_
+#define OBC_COMM_H_
 
 
 /**
@@ -14,10 +14,10 @@
  * This file contain function related to intercommunication between Slave Processor and On-Board Computer
  */
 
-void odroid_comm_init(void);
+void OBC_comm_init(void);
 
 void send_params(void);
 
-void odroid_debug(uint8_t _index, float _value);
+void OBC_debug(uint8_t _index, float _value);
 
-#endif /* ODROID_COMM_H_ */
+#endif /* OBC_COMM_H_ */

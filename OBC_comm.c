@@ -1,12 +1,12 @@
 /*
- * odroid_comm.c
+ * OBC_comm.c
  *
  *  Created on: 26-Apr-2015
  *      Author: nikhil
  */
 
-#ifndef ODROID_COMM_C_
-#define ODROID_COMM_C_
+#ifndef OBC_COMM_C_
+#define OBC_COMM_C_
 
 /**
  * @Warning	EDIT THIS FILE WHEN YOU ARE 200% SURE OF WHAT YOU ARE DOING!
@@ -49,7 +49,7 @@ const float MILLIG_TO_MS2 = 9.80665f / 1000.0f;
 const float MS2_TO_MILLIG = 1000.0f/9.80665f;
 const float RAD_TO_MILLIRAD = 1000.0f;
 
-//Sends Hearthbeat to odroid
+//Sends Hearthbeat to OBC
 static void send_heart_beat(mavlink_channel_t chan){
 
 	mavlink_msg_heartbeat_send(chan,
@@ -80,7 +80,7 @@ static void send_highres_imu(mavlink_channel_t chan){
 			  63);
 }
 
-//Sends attitude data to odroid
+//Sends attitude data to OBC
 static void send_attitude(mavlink_channel_t chan){
 
 	mavlink_msg_attitude_send(
@@ -94,23 +94,23 @@ static void send_attitude(mavlink_channel_t chan){
 			sens_imu.gyro.z);
 }
 
-//Sends gps-baro position data to odroid
+//Sends gps-baro position data to OBC
 static void send_gps(mavlink_channel_t chan){
 
 	mavlink_msg_global_position_int_send(
 			chan,
 			millis(),
-			sens_pos.lat,						//sending out raw gps data as received from LLP
-			sens_pos.lng,
-			sens_pos.alt*CM_TO_MM,
-			sens_pos.alt*CM_TO_MM,
-			sens_pos.vel.x,
-			sens_pos.vel.y,
-			sens_pos.vel.z,
+			(sens_pos.lat),						//sending out raw gps data as received from LLP
+			(sens_pos.lng),
+			(sens_pos.alt*10),
+			(sens_pos.alt*10),
+			(sens_pos.vel.x),
+			(sens_pos.vel.y),
+			(sens_pos.vel.z),
 			(int16_t)(sens_imu.attitude.z*5729.57));
 }
 
-//Sends rc data to odroid
+//Sends rc data to OBC
 static void send_rc_in(mavlink_channel_t chan){
     mavlink_msg_rc_channels_raw_send(
     	chan,
@@ -260,7 +260,7 @@ void handleMessage(mavlink_message_t* msg, mavlink_channel_t chan)
     /**
      * addition by atulya
      *
-     * This msg Receives vision position estimates from Odroid
+     * This msg Receives vision position estimates from OBC
      */
     case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
     {
@@ -274,6 +274,9 @@ void handleMessage(mavlink_message_t* msg, mavlink_channel_t chan)
     	sens_cv.yaw = -vision_position_inp.roll;
     	sens_cv.obc_stamp = vision_position_inp.usec;
     	sens_cv.stamp = millis();
+    	sens_cv.attitude.x = vision_position_inp.roll;
+    	sens_cv.attitude.y = vision_position_inp.pitch;
+    	sens_cv.attitude.z = vision_position_inp.yaw;
 
     	if(fabs(vision_position_inp.yaw - 1) < EPSILON)				// signal sent to ensure CV is active
     		sens_cv.flag_active = 1;
@@ -285,6 +288,28 @@ void handleMessage(mavlink_message_t* msg, mavlink_channel_t chan)
     	break;
     }
 
+    case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:
+    {
+    	mavlink_set_position_target_local_ned_t st_pt;
+    	mavlink_msg_set_position_target_local_ned_decode(msg, &st_pt);
+
+    	set_point.stamp = millis();
+    	set_point.obc_stamp = st_pt.time_boot_ms;
+
+    	set_point.position.x = st_pt.x;
+    	set_point.position.y = st_pt.y;
+    	set_point.position.z = st_pt.z;
+
+    	set_point.velocity.x = st_pt.vx;
+    	set_point.velocity.y = st_pt.vy;
+    	set_point.velocity.z = st_pt.vz;
+
+    	set_point.yaw = st_pt.yaw;
+    	set_point.yaw_rate = st_pt.yaw_rate;
+
+    	break;
+    }
+
     default:
     	break;
 
@@ -292,7 +317,7 @@ void handleMessage(mavlink_message_t* msg, mavlink_channel_t chan)
 }
 
 //Function to receive and update data from mavros
-void odroid_update(void )
+void OBC_update(void )
 {
 
     mavlink_message_t msg;
@@ -323,15 +348,15 @@ static msg_t mavlinkReceive(void *arg) {
 
   while (TRUE) {
 
-	  odroid_update();
+	  OBC_update();
 
 	  delay(10);
   }
   return 0;
 }
 
-//Function to initiate odroid communication
-void odroid_comm_init(void){
+//Function to initiate OBC communication
+void OBC_comm_init(void){
 
 	mavlink_system.sysid = 1;
 
@@ -340,7 +365,7 @@ void odroid_comm_init(void){
 
 }
 
-void odroid_debug(uint8_t _index, float _value){
+void OBC_debug(uint8_t _index, float _value){
 	mavlink_msg_debug_send(MAVLINK_COMM_0,
 			millis(),
 			_index,
@@ -348,4 +373,4 @@ void odroid_debug(uint8_t _index, float _value){
 }
 
 
-#endif /* ODROID_COMM_C_ */
+#endif /* OBC_COMM_C_ */

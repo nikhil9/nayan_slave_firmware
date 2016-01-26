@@ -6,7 +6,7 @@
 #include "main.h"
 #include "Setup.h"
 #include "intercomm.h"
-#include "odroid_comm.h"
+#include "OBC_comm.h"
 
 
 //Handles imu data
@@ -15,9 +15,12 @@ Sensor_IMU sens_imu;
 //Handles position data from GPS and Baro
 Sensor_Pose sens_pos;
 
-//Handles position data from Odroid. This is being updated at handleMessage()
-//function in odroid.c
+//Handles position data from OBC. This is being updated at handleMessage()
+//function in OBC.c
 Sensor_ExtPos sens_cv;
+
+//Handles controller setpoints sent from On Board Computer
+Setpoint_from_OBC set_point;
 
 //Handles radio control inputs
 uint16_t rc_in[7];
@@ -86,7 +89,7 @@ int main(void)
 
 	delay(1000);
 
-	odroid_comm_init();
+	OBC_comm_init();
 
 	while(TRUE)
 	{
@@ -100,9 +103,9 @@ int main(void)
 //		example_function_2();
 
 		//testing dbg msg
-//		odroid_debug(1, 265.658);
+//		OBC_debug(1, 265.658);
 
-//		odroid_debug(5, 0.157946);
+//		OBC_debug(5, 0.157946);
 
 
 		delay(1000);

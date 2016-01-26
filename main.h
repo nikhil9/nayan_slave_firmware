@@ -68,17 +68,33 @@ typedef struct
 
 /**
  * @brief struct to acquire data from an external position sensor such as a vision based system
- * @note This is being updated at handleMessage() in odroid.c
+ * @note This is being updated at handleMessage() in OBC.c
  */
 typedef struct
 {
 	uint32_t stamp; /* Slave Processor System timestamp */
-	uint64_t obc_stamp; /* Timestamp from Odroid */
+	uint64_t obc_stamp; /* Timestamp from OBC */
+	Vector3f attitude; /* Attitude (rpy) */
 	Vector3f position; /* position in local frame */
 	float yaw; /* yaw angle in NED frame */
-	uint8_t flag_active; /* This is true if slave processor is receiving updates from odroid*/
-	float depth; /* depth from Sonar if sent from odroid */
+	uint8_t flag_active; /* This is true if slave processor is receiving updates from OBC*/
+	float depth; /* depth from Sonar if sent from OBC */
 }Sensor_ExtPos;
+
+/**
+ * @brief struct to acquire setopints from On Board Computer
+ * @note This is being updated at handleMessage() in OBC.c
+ */
+typedef struct
+{
+	uint32_t stamp; /* Slave Processor System timestamp */
+	uint64_t obc_stamp; /* Timestamp from OBC */
+	Vector3f position; /* position setpoint in user defined frame */
+	Vector3f velocity; /* velocity setpoint in user defined frame */
+	float yaw; /* yaw setpoint in rad*/
+	float yaw_rate;/* yaw rate setpoint in rad/sec*/
+}Setpoint_from_OBC;
+
 
 
 extern Sensor_IMU sens_imu;
@@ -86,6 +102,8 @@ extern Sensor_IMU sens_imu;
 extern Sensor_Pose sens_pos;
 
 extern Sensor_ExtPos sens_cv;
+
+extern Setpoint_from_OBC set_point;
 
 extern uint16_t rc_in[7];
 

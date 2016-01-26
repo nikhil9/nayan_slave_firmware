@@ -96,7 +96,7 @@ CSRC = $(PORTSRC) \
        stubs.c \
        Setup.c \
        intercomm.c \
-       odroid_comm.c \
+       OBC_comm.c \
        main.c
        
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
