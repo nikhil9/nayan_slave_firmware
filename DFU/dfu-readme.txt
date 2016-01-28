@@ -1,14 +1,9 @@
 ## General Instructions ##
 
-In order to program the device press the push button while powering up the autopilot
-Make sure BOOT0 jumper/switch is on while powering up the mcu.
-BOOT0 -> HIGH
-BOOT1 -> LOW
-
-'''LINUX'''
+In order to program the device press the push button 'DFU Switch' while powering up the autopilot
 
 
-#Add udev rules
+###Add udev rules
 
 sudo gedit /etc/udev/rules.d/stm32.rules
 
@@ -27,10 +22,10 @@ sudo restart udev
 
 
 
-'''Eclipse Instructions'''
+###Eclipse Instructions'''
 
 *Run > External Tool > External Tool Config > New Program
-*Select location of dfu-util at 'Location'
+*Select location of dfu-util at 'Location'(Select file corresponding to 32bit or 64bit system)
 *select 'build' directory location at 'Working Directory'
 *Put following lines in Argument tab
 

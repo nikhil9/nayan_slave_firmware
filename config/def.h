@@ -22,10 +22,6 @@
 
 #define USE_EKF			TRUE
 
-//0 -> OFF
-//1 -> Debug
-//2 -> Tele
-
 #define DUAL_TELE		0
 
 #define EX_DBG			1
