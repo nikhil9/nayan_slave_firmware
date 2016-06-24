@@ -38,6 +38,10 @@
 #define BOARD_NAYAN_AP_HLP
 #define BOARD_NAME              "Nayan_AP_SLAVE"
 
+#define NAYAN	0
+#define V10		1
+#define BOARD	NAYAN //'NAYAN' or 'V10'
+
 /*
  * Board frequencies.
  * NOTE: The LSE crystal is not fitted by default on the board.
