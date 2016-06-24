@@ -11,6 +11,7 @@
 #include"hal.h"
 #include"ch.h"
 #include "Setup.h"
+#include "OS_PORT/boards/nayan_hlp/board.h"
 
 #define LOG				TRUE
 
