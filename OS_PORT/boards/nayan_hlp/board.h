@@ -40,7 +40,7 @@
 
 #define NAYAN	0
 #define V10		1
-#define BOARD	NAYAN //'NAYAN' or 'V10'
+#define BOARD	V10 //'NAYAN' or 'V10'
 
 #if BOARD == NAYAN
 /*
