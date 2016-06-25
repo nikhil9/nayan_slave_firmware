@@ -419,16 +419,17 @@ void start_intercomm(void){
 	palSetPadMode(GPIOA, 6, PAL_MODE_ALTERNATE(5));
 	palSetPadMode(GPIOA, 7, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
 	delay(50);
-	spiStart(&INTERCOM_SPI, &slvcfg);
+	spiStart(&SPID1, &slvcfg);
 
 #elif BOARD == V10
 	palSetPadMode(GPIOB, 12, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
-	palSetPad(GPIOB, 12);
 	palSetPadMode(GPIOB, 13, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
 	palSetPadMode(GPIOB, 14, PAL_MODE_ALTERNATE(5));
 	palSetPadMode(GPIOB, 15, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
 	delay(50);
-	spiStart(&INTERCOM_SPI, &slvcfg);
+	spiStart(&SPID2, &slvcfg);
+	palSetPad(GPIOB, 12);
+	delay(50);
 
 #endif
 	delay(50);

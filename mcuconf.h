@@ -514,6 +514,7 @@
 #define STM32_SPI_SPI3_IRQ_PRIORITY         10
 #define STM32_SPI_SPI4_IRQ_PRIORITY         10
 #define STM32_SPI_DMA_ERROR_HOOK(spip)      chSysHalt()
+#define STM32_SPI_SLAVE_MODE				TRUE
 
 /*
  * UART driver system settings.
