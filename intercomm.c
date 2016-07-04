@@ -236,8 +236,8 @@ void update_ic_data(void){
 	sens_pos.vel.y = ic_imu_data.ic_imu.vy;
 	sens_pos.vel.z = ic_imu_data.ic_imu.vz;
 
-	if(isRCInputSane() == TRUE)
-	{
+//	if(isRCInputSane() == TRUE)
+//	{
 		//RC channel inputs as obtained from transmitter corresponding to channels 1 to 7
 		rc_in[0] = ic_imu_data.ic_imu.rc_in_1;
 		rc_in[1] = ic_imu_data.ic_imu.rc_in_2;
@@ -246,7 +246,7 @@ void update_ic_data(void){
 		rc_in[4] = ic_imu_data.ic_imu.rc_in_5;
 		rc_in[5] = ic_imu_data.ic_imu.rc_in_6;
 		rc_in[6] = ic_imu_data.ic_imu.rc_in_7;
-	}
+//	}
 
 
 	if(dmc){

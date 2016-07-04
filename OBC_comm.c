@@ -88,7 +88,7 @@ static void send_attitude(mavlink_channel_t chan){
 			millis(),
 			sens_imu.attitude.x,
 			sens_imu.attitude.y,
-			sens_imu.attitude.z,
+			(sens_imu.attitude.z+(M_PI_F/2)),
 			sens_imu.gyro.x,
 			sens_imu.gyro.y,
 			sens_imu.gyro.z);
