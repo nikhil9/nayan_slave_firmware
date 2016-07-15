@@ -422,11 +422,11 @@ void start_intercomm(void){
 	spiStart(&SPID1, &slvcfg);
 
 #elif BOARD == V10
-	palSetPadMode(GPIOB, 12, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
+/*	palSetPadMode(GPIOB, 12, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);
 	palSetPadMode(GPIOB, 13, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
 	palSetPadMode(GPIOB, 14, PAL_MODE_ALTERNATE(5));
 	palSetPadMode(GPIOB, 15, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);
-	delay(50);
+	delay(50);*/
 	spiStart(&SPID2, &slvcfg);
 	palSetPad(GPIOB, 12);
 	delay(50);
@@ -515,7 +515,34 @@ static msg_t IC_THD(void *arg) {
 	ic_rc_or_data.ic_rc.rc7 = 1000;
 
 	while (TRUE) {
-		uint8_t txbuf[40], rxbuf[80];
+		uint8_t txbuf[80], rxbuf[80];
+
+		ic_rc_or_data.ic_rc.rc1 = 1500;
+		ic_rc_or_data.ic_rc.rc2 = 1500;
+		ic_rc_or_data.ic_rc.rc3 = 1000;
+		ic_rc_or_data.ic_rc.rc4 = 1500;
+		ic_rc_or_data.ic_rc.rc5 = 1500;
+		ic_rc_or_data.ic_rc.rc6 = 1500;
+		ic_rc_or_data.ic_rc.rc7 = 1000;
+/*		for( i = 0; i < 80; i++)
+				{
+					txbuf[i] = i;
+				}
+				spiAcquireBus(&SPID2);
+				spiSelect(&SPID2);
+				spiExchange(&SPID2,80,txbuf,rxbuf);
+				spiUnselect(&SPID2);
+				spiReleaseBus(&SPID2);
+
+				for( i = 0; i < 80; i++)
+				{
+					if(rxbuf[i] == (rxbuf[i-1]+1))
+						debug("++");
+					else
+						debug("***");
+					//debug("i is %d and val is %d",i,rxbuf[i]);
+				}
+				delay(2);*/
 
 		txbuf[0] = 0x00;
 		txbuf[1] = 0x1E;
@@ -523,15 +550,18 @@ static msg_t IC_THD(void *arg) {
 		txbuf[3] = 0x1D;
 		txbuf[4] = 0x00;
 
-		for( i = 0; i < 40; i = i + 2){
-			txbuf[i] = 0X00;
+		for( i = 0; i < 36; i = i + 2){
+			txbuf[i+5] = 0X00;
 		}
 
-		for(i = 0; i < 14; i++){
+		/*for(i = 0; i < 14; i++){
 			txbuf[((2 * i) + 5)] = ic_rc_or_data.raw[i];
+		}*/
+		for(i = 0; i < 14; i++){
+			txbuf[(i + 5)] = ic_rc_or_data.raw[i];
 		}
 
-		 spi_exchange_data(&INTERCOM_SPI, txbuf, rxbuf, 120);
+		 spi_exchange_data(&INTERCOM_SPI, txbuf, rxbuf, 80);
 
 		int16_t cnt = -1;
 		for(i = 0; i < 89; i++){
@@ -555,6 +585,7 @@ static msg_t IC_THD(void *arg) {
 		(check_ahrs_sanity(ic_imu_data.ic_imu.gx) && check_ahrs_sanity(ic_imu_data.ic_imu.gy) && check_ahrs_sanity(ic_imu_data.ic_imu.gz)) &&
 		(check_acc_sanity(ic_imu_data.ic_imu.ax) && check_acc_sanity(ic_imu_data.ic_imu.ay) && check_acc_sanity(ic_imu_data.ic_imu.az)))sanity = TRUE;
 
+		sanity = TRUE;
 		if(sanity)update_ic_data();
 
 		sanity = FALSE;

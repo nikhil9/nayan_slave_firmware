@@ -410,20 +410,20 @@ void spi_lld_start(SPIDriver *spip) {
   }
 
   /* Configuration-specific DMA setup.*/
-  if ((spip->config->cr1 & SPI_CR1_DFF) == 0) {
+//  if ((spip->config->cr1 & SPI_CR1_DFF) == 0) {
     /* Frame width is 8 bits or smaller.*/
     spip->rxdmamode = (spip->rxdmamode & ~STM32_DMA_CR_SIZE_MASK) |
                       STM32_DMA_CR_PSIZE_BYTE | STM32_DMA_CR_MSIZE_BYTE;
     spip->txdmamode = (spip->txdmamode & ~STM32_DMA_CR_SIZE_MASK) |
                       STM32_DMA_CR_PSIZE_BYTE | STM32_DMA_CR_MSIZE_BYTE;
-  }
-  else {
-    /* Frame width is larger than 8 bits.*/
+//  }
+/*  else {
+     Frame width is larger than 8 bits.
     spip->rxdmamode = (spip->rxdmamode & ~STM32_DMA_CR_SIZE_MASK) |
                       STM32_DMA_CR_PSIZE_HWORD | STM32_DMA_CR_MSIZE_HWORD;
     spip->txdmamode = (spip->txdmamode & ~STM32_DMA_CR_SIZE_MASK) |
                       STM32_DMA_CR_PSIZE_HWORD | STM32_DMA_CR_MSIZE_HWORD;
-  }
+  }*/
   /* SPI setup and enable.*/
 #if !defined(STM32_SPI_SLAVE_MODE)
   spip->spi->CR1  = 0;
@@ -432,8 +432,8 @@ void spi_lld_start(SPIDriver *spip) {
   spip->spi->CR2  = SPI_CR2_SSOE | SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN;
   spip->spi->CR1 |= SPI_CR1_SPE;
 #else
-
-  spip->spi->CR1 = spip->config->cr1| SPI_CR1_LSBFIRST| SPI_CR1_DFF;// | SPI_CR1_RXONLY; //| SPI_CR1_DFF;
+  spip->spi->CR1=0;
+ // spip->spi->CR1 = spip->config->cr1| SPI_CR1_LSBFIRST| SPI_CR1_DFF;// | SPI_CR1_RXONLY; //| SPI_CR1_DFF;
    spip->spi->CR2 = SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN; //| SPI_CR2_RXNEIE;
    spip->spi->CR1 |= SPI_CR1_SPE;
 #endif
