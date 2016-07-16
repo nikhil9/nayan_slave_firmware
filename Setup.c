@@ -517,33 +517,6 @@ static msg_t IC_THD(void *arg) {
 	while (TRUE) {
 		uint8_t txbuf[80], rxbuf[80];
 
-		ic_rc_or_data.ic_rc.rc1 = 1500;
-		ic_rc_or_data.ic_rc.rc2 = 1500;
-		ic_rc_or_data.ic_rc.rc3 = 1000;
-		ic_rc_or_data.ic_rc.rc4 = 1500;
-		ic_rc_or_data.ic_rc.rc5 = 1500;
-		ic_rc_or_data.ic_rc.rc6 = 1500;
-		ic_rc_or_data.ic_rc.rc7 = 1000;
-/*		for( i = 0; i < 80; i++)
-				{
-					txbuf[i] = i;
-				}
-				spiAcquireBus(&SPID2);
-				spiSelect(&SPID2);
-				spiExchange(&SPID2,80,txbuf,rxbuf);
-				spiUnselect(&SPID2);
-				spiReleaseBus(&SPID2);
-
-				for( i = 0; i < 80; i++)
-				{
-					if(rxbuf[i] == (rxbuf[i-1]+1))
-						debug("++");
-					else
-						debug("***");
-					//debug("i is %d and val is %d",i,rxbuf[i]);
-				}
-				delay(2);*/
-
 		txbuf[0] = 0x00;
 		txbuf[1] = 0x1E;
 		txbuf[2] = 0x00;
@@ -554,9 +527,6 @@ static msg_t IC_THD(void *arg) {
 			txbuf[i+5] = 0X00;
 		}
 
-		/*for(i = 0; i < 14; i++){
-			txbuf[((2 * i) + 5)] = ic_rc_or_data.raw[i];
-		}*/
 		for(i = 0; i < 14; i++){
 			txbuf[(i + 5)] = ic_rc_or_data.raw[i];
 		}
@@ -580,12 +550,15 @@ static msg_t IC_THD(void *arg) {
 			}
 		}
 
+/*		for(i == 0; i < 74; i++){
+			ic_imu_data.raw[i] = rxbuf[i+2];
+		}*/
+
 
 		if(new_data && (!(ic_imu_data.ic_imu.gx == 0 && ic_imu_data.ic_imu.gy == 0 && ic_imu_data.ic_imu.gz == 0)) &&
 		(check_ahrs_sanity(ic_imu_data.ic_imu.gx) && check_ahrs_sanity(ic_imu_data.ic_imu.gy) && check_ahrs_sanity(ic_imu_data.ic_imu.gz)) &&
 		(check_acc_sanity(ic_imu_data.ic_imu.ax) && check_acc_sanity(ic_imu_data.ic_imu.ay) && check_acc_sanity(ic_imu_data.ic_imu.az)))sanity = TRUE;
 
-		sanity = TRUE;
 		if(sanity)update_ic_data();
 
 		sanity = FALSE;
