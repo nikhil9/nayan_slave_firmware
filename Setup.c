@@ -531,29 +531,14 @@ static msg_t IC_THD(void *arg) {
 			txbuf[(i + 5)] = ic_rc_or_data.raw[i];
 		}
 
-		 spi_exchange_data(&INTERCOM_SPI, txbuf, rxbuf, 80);
+		spi_exchange_data(&INTERCOM_SPI, txbuf, rxbuf, 80);
 
-		int16_t cnt = -1;
-		for(i = 0; i < 89; i++){
-			if(cnt >= 0 && cnt < 74){
-				ic_imu_data.raw[cnt] = rxbuf[i];
-			  cnt++;
-			  new_data = TRUE;
-			}
-
-			else if((rxbuf[i] == IC_IMU_H) && stp == 0){
-				stp++;
-			}
-			else if((stp == 1) && (rxbuf[i] == 0x2D)){
-				cnt = 0;
-				stp = 0;
+		if((rxbuf[0] ==  0) && (rxbuf[1] == IC_IMU_H) && (rxbuf[2] == 0x2D)){
+			for(i = 0; i < 74; i++){
+				ic_imu_data.raw[i] = rxbuf[i+3];
+				new_data = TRUE;
 			}
 		}
-
-/*		for(i == 0; i < 74; i++){
-			ic_imu_data.raw[i] = rxbuf[i+2];
-		}*/
-
 
 		if(new_data && (!(ic_imu_data.ic_imu.gx == 0 && ic_imu_data.ic_imu.gy == 0 && ic_imu_data.ic_imu.gz == 0)) &&
 		(check_ahrs_sanity(ic_imu_data.ic_imu.gx) && check_ahrs_sanity(ic_imu_data.ic_imu.gy) && check_ahrs_sanity(ic_imu_data.ic_imu.gz)) &&
